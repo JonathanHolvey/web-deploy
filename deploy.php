@@ -16,8 +16,17 @@ class githubWebDeploy {
 		$zip = new ZipArchive;
 		if (!$this->getRepo() or !$zip->open($this->zipname))
 			respond("There was a problem opening the zip archive.", 400);
+		// Extract modified files
+		for ($i = 0; $i < $zip->numFiles; $i ++) {
+			$source = $zip->getNameIndex($i);
+			$filename = preg_replace("/^[^\/]+\//", "", $source);
+			if (preg_match("/^[^\/]+\/(.+)$/", $source)) {
+				if (in_array($filename, $this->files["modified"]) or $this->config["mode"] == "replace")
+					saveFile($this->config["destination"] . "/" . $filename, $zip->getFromName($source));
+			}
+		}
+		// Delete removed files		
 
-		
 	}
 
 	// Select and verify correct config
@@ -81,6 +90,13 @@ function respond($message, $code) {
 	http_response_code($code);
 	echo($message);
 	die();
+}
+
+// Create file from data string
+function saveFile($filename, $data) {
+	if (!is_dir(dirname($filename)))
+		mkdir(dirname($filename), $mode=0755, $recursive=true);
+	file_put_contents($filename, $data);
 }
 
 $deploy = new githubWebDeploy();
