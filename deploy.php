@@ -19,14 +19,16 @@ class githubWebDeploy {
 		// Extract modified files
 		for ($i = 0; $i < $zip->numFiles; $i ++) {
 			$source = $zip->getNameIndex($i);
-			$filename = preg_replace("/^[^\/]+\//", "", $source);
+			$filename = preg_replace("/^[^\/]+\//", "", $source);  // Remove zip root folder from paths
 			if (preg_match("/^[^\/]+\/(.+)$/", $source)) {
 				if (in_array($filename, $this->files["modified"]) or $this->config["mode"] == "replace")
-					saveFile($this->config["destination"] . "/" . $filename, $zip->getFromName($source));
+					$this->writeFile($this->config["destination"] . "/" . $filename, $zip->getFromName($source));
 			}
 		}
 		// Delete removed files		
-
+		foreach ($this->files["removed"] as $filename) {
+			$this->removeFile($this->config["destination"] . "/" . $filename);
+		}
 	}
 
 	// Select and verify correct config
@@ -47,6 +49,12 @@ class githubWebDeploy {
 		}
 		if ($this->config === null)
 			respond("The payload didn't match the deployment config", 401);
+		// Check config contains valid options
+		elseif (!in_array($this->config["mode"], ["update", "replace"]))
+			respond("The current mode option '" . $this->config["mode"] . "' is invalid.", 500);
+		// Remove trailing slashes from paths
+		$this->config["repository"] = rtrim($this->config["repository"], "/");
+		$this->config["destination"] = rtrim($this->config["destination"], "/");
 	}
 
 	// Download repository as zip file from GitHub
@@ -65,14 +73,12 @@ class githubWebDeploy {
 		foreach ($this->payload["commits"] as $commit) {
 			// List new and modified files
 			foreach (array_merge($commit["added"], $commit["modified"]) as $file) {
-				if (in_array($file, $removed))
-					$removed = array_diff($removed, [$file]);
+				$removed = array_diff($removed, [$file]);
 				$modified[] = $file;
 			}
 			// List removed files
 			foreach ($commit["removed"] as $file) {
-				if (in_array($file, $modified))
-					$modified = array_diff($modified, [$file]);
+				$modified = array_diff($modified, [$file]);
 				$removed[] = $file;
 			}
 		}
@@ -83,6 +89,27 @@ class githubWebDeploy {
 	function loadConfig() {
 		return json_decode(file_get_contents("config.json"), $assoc=true);
 	}
+
+	// Create file from data string
+	function writeFile($filename, $data) {
+		if (!is_dir(dirname($filename)))
+			mkdir(dirname($filename), $mode=0755, $recursive=true);
+		file_put_contents($filename, $data);
+	}
+
+	// Remove file and empty directories
+	function removeFile($filename) {
+		if (is_file($filename))
+			unlink($filename);
+		// Traverse up file structure removing empty directories
+		$path = dirname($filename);
+		while ($path != $this->config["destination"]) {
+			if (count(scandir($path)) > 2)  // Check directory is empty
+				break;
+			rmdir($path);
+			$path = dirname($path);
+		}
+	}
 }
 
 // Return a HTTP response code and message, and quit
@@ -90,13 +117,6 @@ function respond($message, $code) {
 	http_response_code($code);
 	echo($message);
 	die();
-}
-
-// Create file from data string
-function saveFile($filename, $data) {
-	if (!is_dir(dirname($filename)))
-		mkdir(dirname($filename), $mode=0755, $recursive=true);
-	file_put_contents($filename, $data);
 }
 
 $deploy = new githubWebDeploy();
