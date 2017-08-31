@@ -140,5 +140,12 @@ function countFiles($path) {
 	return count(array_diff(scandir($path), [".", ".."]));
 }
 
-$deploy = new githubWebDeploy();
-$deploy->deploy();
+$headers = getallheaders();
+if (in_array("X-Github-Event", array_keys($headers))) {
+	if ($headers["X-Github-Event"] == "ping")
+		respond("Ping received", 200);
+	else {
+		$deploy = new githubWebDeploy();
+		$deploy->deploy();		
+	}
+}
