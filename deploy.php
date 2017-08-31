@@ -13,9 +13,11 @@ class githubWebDeploy {
 	function deploy() {
 		$this->parseCommits();
 		// Download and extract repository
+		if (!$this->getRepo())
+			respond("The zip archive could not be downloaded", 400);
 		$zip = new ZipArchive;
-		if (!$this->getRepo() or !$zip->open($this->zipname))
-			respond("There was a problem opening the zip archive.", 400);
+		if (!$zip->open($this->zipname))
+			respond("The zip archive could not be opened", 400);
 		// Extract modified files
 		for ($i = 0; $i < $zip->numFiles; $i ++) {
 			$source = $zip->getNameIndex($i);
@@ -30,6 +32,7 @@ class githubWebDeploy {
 			$this->removeFile($filename);
 		}
 		$this->cleanup();
+		respond("Repository deployed successfully", 200);
 	}
 
 	// Select and verify correct config
@@ -52,7 +55,11 @@ class githubWebDeploy {
 			respond("The payload didn't match the deployment config", 401);
 		// Check config contains valid options
 		if (!in_array($this->config["mode"], ["update", "replace"]))
-			respond("The current mode option '" . $this->config["mode"] . "' is invalid.", 500);
+			respond("The current mode option '" . $this->config["mode"] . "' is invalid", 500);
+		if (!is_writable($this->config["destination"]))
+			respond("The script can't write to the destination directory " . $this->config["destination"], 500);
+		if (!is_writable(dirname(__FILE__)))
+			respond("The script can't write to the deployment directory " . dirname(__FILE__), 500);
 		// Remove trailing slashes from paths
 		$this->config["repository"] = rtrim($this->config["repository"], "/");
 		$this->config["destination"] = rtrim($this->config["destination"], "/");
@@ -104,7 +111,7 @@ class githubWebDeploy {
 		$filename = $this->config["destination"] . "/" . $filename;
 		if (!is_dir(dirname($filename)))
 			mkdir(dirname($filename), $mode=0755, $recursive=true);
-		file_put_contents($filename, $data);
+		return(file_put_contents($filename, $data));
 	}
 
 	// Remove file and empty directories
