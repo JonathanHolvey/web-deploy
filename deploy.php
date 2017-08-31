@@ -29,6 +29,7 @@ class githubWebDeploy {
 		foreach ($this->files["removed"] as $filename) {
 			$this->removeFile($filename);
 		}
+		$this->cleanup();
 	}
 
 	// Select and verify correct config
@@ -42,8 +43,7 @@ class githubWebDeploy {
 			if ($this->payload["repository"]["url"] != $config["repository"])
 				continue;		
 			// Check branch
-			$branch = end(explode("/", $this->payload["ref"]));
-			if (isset($config["branch"]) and $branch != $config["branch"])
+			if (isset($config["branch"]) and basename($this->payload["ref"]) != $config["branch"])
 				continue;
 			$this->config = $config;
 			break;
@@ -84,6 +84,14 @@ class githubWebDeploy {
 			}
 		}
 		$this->files = array("modified" => array_unique($modified), "removed" => array_unique($removed));
+	}
+
+	// Remove downloaded zip file
+	function cleanup() {
+		if ($this->zipname != null and is_file($this->zipname)) {
+			if (unlink($this->zipname))
+				$this->zipname = null;
+		}
 	}
 
 	// Load deployment config from config.json
