@@ -21,13 +21,13 @@ class githubWebDeploy {
 			$source = $zip->getNameIndex($i);
 			$filename = preg_replace("/^[^\/]+\//", "", $source);  // Remove zip root folder from paths
 			if (preg_match("/^[^\/]+\/(.+)$/", $source)) {
-				if (in_array($filename, $this->files["modified"]) or $this->config["mode"] == "replace")
-					$this->writeFile($this->config["destination"] . "/" . $filename, $zip->getFromName($source));
+				if ($this->config["mode"] == "replace" or in_array($filename, $this->files["modified"]))
+					$this->writeFile($filename, $zip->getFromName($source));
 			}
 		}
 		// Delete removed files		
 		foreach ($this->files["removed"] as $filename) {
-			$this->removeFile($this->config["destination"] . "/" . $filename);
+			$this->removeFile($filename);
 		}
 	}
 
@@ -50,7 +50,7 @@ class githubWebDeploy {
 		if ($this->config === null)
 			respond("The payload didn't match the deployment config", 401);
 		// Check config contains valid options
-		elseif (!in_array($this->config["mode"], ["update", "replace"]))
+		if (!in_array($this->config["mode"], ["update", "replace"]))
 			respond("The current mode option '" . $this->config["mode"] . "' is invalid.", 500);
 		// Remove trailing slashes from paths
 		$this->config["repository"] = rtrim($this->config["repository"], "/");
@@ -82,7 +82,7 @@ class githubWebDeploy {
 				$removed[] = $file;
 			}
 		}
-		$this->files = array("modified" => $modified, "removed" => $removed);
+		$this->files = array("modified" => array_unique($modified), "removed" => array_unique($removed));
 	}
 
 	// Load deployment config from config.json
@@ -92,6 +92,7 @@ class githubWebDeploy {
 
 	// Create file from data string
 	function writeFile($filename, $data) {
+		$filename = $this->config["destination"] . "/" . $filename;
 		if (!is_dir(dirname($filename)))
 			mkdir(dirname($filename), $mode=0755, $recursive=true);
 		file_put_contents($filename, $data);
@@ -99,24 +100,27 @@ class githubWebDeploy {
 
 	// Remove file and empty directories
 	function removeFile($filename) {
+		$filename = $this->config["destination"] . "/" . $filename;
 		if (is_file($filename))
 			unlink($filename);
 		// Traverse up file structure removing empty directories
 		$path = dirname($filename);
-		while ($path != $this->config["destination"]) {
-			if (count(scandir($path)) > 2)  // Check directory is empty
-				break;
+		while ($path != $this->config["destination"] and countFiles($path) == 2) {
 			rmdir($path);
 			$path = dirname($path);
 		}
 	}
 }
 
-// Return a HTTP response code and message, and quit
+// Return an HTTP response code and message, and quit
 function respond($message, $code) {
 	http_response_code($code);
-	echo($message);
-	die();
+	die($message);
+}
+
+// Count the files in a directory, excluding . and ..
+function countFiles($path) {
+	return count(array_diff(scandir($path), [".", ".."]));
 }
 
 $deploy = new githubWebDeploy();
