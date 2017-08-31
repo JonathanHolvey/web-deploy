@@ -22,14 +22,15 @@ class githubWebDeploy {
 		for ($i = 0; $i < $zip->numFiles; $i ++) {
 			$source = $zip->getNameIndex($i);
 			$filename = preg_replace("/^[^\/]+\//", "", $source);  // Remove zip root folder from paths
-			if (preg_match("/^[^\/]+\/(.+)$/", $source)) {
+			if (preg_match("/^[^\/]+\/(.+)$/", $source) and !$this->ignored($filename)) {
 				if ($this->config["mode"] == "replace" or in_array($filename, $this->files["modified"]))
 					$this->writeFile($filename, $zip->getFromName($source));
 			}
 		}
 		// Delete removed files		
 		foreach ($this->files["removed"] as $filename) {
-			$this->removeFile($filename);
+			if (!$this->ignored($filename))
+				$this->removeFile($filename);
 		}
 		$this->cleanup();
 		respond("Repository deployed successfully", 200);
@@ -126,6 +127,19 @@ class githubWebDeploy {
 				$path = dirname($path);
 			}
 		}
+	}
+
+	// Check to see if a file should be ignored
+	function ignored($filename) {
+		if (isset($this->config["ignore"])) {
+			if (in_array($filename, $this->config["ignore"]))
+				return true;
+			foreach ($this->config["ignore"] as $pattern) {
+				if (fnmatch($pattern, $filename))
+					return true;
+			}
+		}
+		return false;
 	}
 }
 
