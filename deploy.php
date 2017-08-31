@@ -42,7 +42,8 @@ class githubWebDeploy {
 			if ($this->payload["repository"]["url"] != $config["repository"])
 				continue;		
 			// Check branch
-			if (isset($config["branch"]) and end(explode("/", $this->payload["ref"])) != $config["branch"])
+			$branch = end(explode("/", $this->payload["ref"]));
+			if (isset($config["branch"]) and $branch != $config["branch"])
 				continue;
 			$this->config = $config;
 			break;
@@ -101,13 +102,14 @@ class githubWebDeploy {
 	// Remove file and empty directories
 	function removeFile($filename) {
 		$filename = $this->config["destination"] . "/" . $filename;
-		if (is_file($filename))
+		if (is_file($filename)) {
 			unlink($filename);
-		// Traverse up file structure removing empty directories
-		$path = dirname($filename);
-		while ($path != $this->config["destination"] and countFiles($path) == 2) {
-			rmdir($path);
-			$path = dirname($path);
+			// Traverse up file structure removing empty directories
+			$path = dirname($filename);
+			while ($path != $this->config["destination"] and countFiles($path) == 0) {
+				rmdir($path);
+				$path = dirname($path);
+			}
 		}
 	}
 }
