@@ -23,10 +23,10 @@ class githubWebDeploy {
 		$this->parseCommits();
 		// Download and extract repository
 		if (!$this->getRepo())
-			logMessage("The zip archive could not be downloaded", LOG_BASIC, 400);
+			logStatus("The zip archive could not be downloaded", 400);
 		$zip = new ZipArchive;
 		if (!$zip->open($this->zipname))
-			logMessage("The zip archive could not be opened", LOG_BASIC, 400);
+			logStatus("The zip archive could not be opened", 400);
 		// Extract modified files
 		for ($i = 0; $i < $zip->numFiles; $i ++) {
 			$source = $zip->getNameIndex($i);
@@ -42,7 +42,7 @@ class githubWebDeploy {
 				$this->removeFile($filename);
 		}
 		$this->cleanup();
-		logMessage("Repository deployed successfully", LOG_BASIC, 200);
+		logStatus("Repository deployed successfully", 200);
 	}
 
 	// Select and verify correct config
@@ -62,14 +62,14 @@ class githubWebDeploy {
 			break;
 		}
 		if ($this->config === null)
-			logMessage("The payload didn't match the deployment config", LOG_BASIC, 401);
+			logStatus("The payload didn't match the deployment config", 401);
 		// Check config contains valid options
 		if (!in_array($this->config["mode"], ["update", "replace"]))
-			logMessage("The current mode option '" . $this->config["mode"] . "' is invalid", LOG_BASIC, 500);
+			logStatus("The current mode option '" . $this->config["mode"] . "' is invalid", 500);
 		if (!is_writable($this->config["destination"]))
-			logMessage("The script can't write to the destination directory " . $this->config["destination"], LOG_BASIC, 500);
+			logStatus("The script can't write to the destination directory " . $this->config["destination"], 500);
 		if (!is_writable(dirname(__FILE__)))
-			logMessage("The script can't write to the deployment directory " . dirname(__FILE__), LOG_BASIC, 500);
+			logStatus("The script can't write to the deployment directory " . dirname(__FILE__), 500);
 		// Remove trailing slashes from paths
 		$this->config["repository"] = rtrim($this->config["repository"], "/");
 		$this->config["destination"] = rtrim($this->config["destination"], "/");
@@ -88,7 +88,7 @@ class githubWebDeploy {
 	// Gather file changes from each commit in sequence
 	function parseCommits() {
 		if (count($this->payload["commits"]) === 0)
-			logMessage("No commits were found in the payload.", LOG_BASIC, 400);
+			logStatus("No commits were found in the payload.", 400);
 		$modified = array();
 		$removed = array();
 		foreach ($this->payload["commits"] as $commit) {
@@ -157,16 +157,20 @@ class githubWebDeploy {
 
 
 // Log to file, print message and exit if required
-function logMessage($message, $level=LOG_BASIC, $code=null) {
+function logMessage($message, $level=LOG_BASIC) {
 	global $logLevel;
 	if ($level >= $logLevel and $logLevel > LOG_NONE) {
 		$output = date("d-m-Y H:i:s") . " : " . $message . "\n";
 		file_put_contents("./deploy.log", $output, FILE_APPEND);		
 	}
-	if (is_int($code) and $code >= 100) {
-		http_response_code($code);
-		die($message);
-	}
+}
+
+
+// Return an HTTP response code and message, and quit
+function logStatus($message, $code) {
+	logMessage($message);
+	http_response_code($code);
+	die($message);
 }
 
 
@@ -192,10 +196,9 @@ function countFiles($path) {
 	return count(array_diff(scandir($path), [".", ".."]));
 }
 
-$headers = getallheaders();
-if (in_array("X-Github-Event", array_keys($headers))) {
-	if ($headers["X-Github-Event"] == "ping")
-		respond("Ping received", LOG_BASIC, 200);
+if (in_array("HTTP_X_GITHUB_EVENT", array_keys($_SERVER))) {
+	if ($_SERVER["HTTP_X_GITHUB_EVENT"] == "ping")
+		logStatus("Ping received", 200);
 	else {
 		$deploy = new githubWebDeploy();
 		$deploy->deploy();		
