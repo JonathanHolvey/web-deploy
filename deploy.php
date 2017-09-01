@@ -14,12 +14,15 @@ class githubWebDeploy {
 		$this->files = null;
 		$this->config = null;
 		$this->zipname = null;
+		$this->errors = 0;
 
 		$this->payload = json_decode($_POST["payload"], true);
 		$this->verify();
 	}
 
 	function deploy() {
+		logMessage("Deploying " . substr($this->payload["head_commit"]["id"], 0, 6) . 
+				   " (" . basename($this->payload["ref"]) . ") " . "from " . $this->config["repository"]);
 		$this->parseCommits();
 		// Download and extract repository
 		if (!$this->getRepo())
@@ -42,7 +45,10 @@ class githubWebDeploy {
 				$this->removeFile($filename);
 		}
 		$this->cleanup();
-		logStatus("Repository deployed successfully", 200);
+		if ($this->errors == 0)
+			logStatus("Repository deployed successfully", 200);
+		else
+			logStatus("Repository deployed with " . $this->errors . ($this->errors > 1 ? " errors" : " error"), 500);
 	}
 
 	// Select and verify correct config
@@ -88,7 +94,7 @@ class githubWebDeploy {
 	// Gather file changes from each commit in sequence
 	function parseCommits() {
 		if (count($this->payload["commits"]) === 0)
-			logStatus("No commits were found in the payload.", 400);
+			logStatus("No commits were found in the payload", 400);
 		$modified = array();
 		$removed = array();
 		foreach ($this->payload["commits"] as $commit) {
@@ -122,23 +128,35 @@ class githubWebDeploy {
 	// Create file from data string
 	function writeFile($filename, $data) {
 		$filename = $this->config["destination"] . "/" . $filename;
+		logMessage((file_exists($filename) ? "Replacing " : "Creating ") . "file " . $filename, LOG_VERBOSE);
 		if (!is_dir(dirname($filename)))
 			mkdir(dirname($filename), 0755, true);
-		return(file_put_contents($filename, $data));
+		if (file_put_contents($filename, $data) === false) {
+			logMessage("Error writing file " . $filename, LOG_BASIC);
+			$this->errors += 1;
+		}
 	}
 
 	// Remove file and empty directories
 	function removeFile($filename) {
 		$filename = $this->config["destination"] . "/" . $filename;
 		if (is_file($filename)) {
-			unlink($filename);
-			// Traverse up file structure removing empty directories
-			$path = dirname($filename);
-			while ($path != $this->config["destination"] and countFiles($path) == 0) {
-				rmdir($path);
-				$path = dirname($path);
+			logMessage("Removing file " . $filename, LOG_VERBOSE);
+			if (unlink($filename)) {
+				// Traverse up file structure removing empty directories
+				$path = dirname($filename);
+				while ($path != $this->config["destination"] and countFiles($path) == 0) {
+					rmdir($path);
+					$path = dirname($path);
+				}
+			}
+			else {
+				logMessage("Error removing file " . $filename, LOG_BASIC);
+				$this->errors += 1;
 			}
 		}
+		else
+			logMessage("Skipping file " . $filename . " - already removed", LOG_BASIC);
 	}
 
 	// Check to see if a file should be ignored
@@ -156,18 +174,21 @@ class githubWebDeploy {
 }
 
 
-// Log to file, print message and exit if required
+// Log to file
 function logMessage($message, $level=LOG_BASIC) {
 	global $logLevel;
-	if ($level >= $logLevel and $logLevel > LOG_NONE) {
-		$output = date("d-m-Y H:i:s") . " : " . $message . "\n";
-		file_put_contents("./deploy.log", $output, FILE_APPEND);		
+	if ($level <= $logLevel and $logLevel > LOG_NONE) {
+		$prefix = date("c") . "  ";
+		$message = str_replace("\n", str_pad("\n", strlen($prefix)), $message);
+		file_put_contents("./deploy.log", $prefix . $message . "\n", FILE_APPEND);		
 	}
 }
 
 
 // Return an HTTP response code and message, and quit
 function logStatus($message, $code) {
+	if (floor($code / 100) != 2)
+		$message = "Error: " . $message;
 	logMessage($message);
 	http_response_code($code);
 	die($message);
