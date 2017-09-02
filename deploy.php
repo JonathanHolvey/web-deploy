@@ -27,17 +27,17 @@ class GithubWebDeploy {
 		// Download and extract repository
 		if (!$this->getRepo())
 			logStatus("The zip archive could not be downloaded", 400);
-		$zip = new ZipArchive;
+		$zip = new GithubZip;
 		if (!$zip->open($this->zipname))
 			logStatus("The zip archive could not be opened", 400);
 		// Extract modified files
-		for ($i = 0; $i < $zip->numFiles; $i ++) {
-			$source = $zip->getNameIndex($i);
-			$filename = preg_replace("/^[^\/]+\//", "", $source);  // Remove zip root folder from paths
-			if (preg_match("/^[^\/]+\/(.+)$/", $source) and !$this->ignored($filename)) {
-				if ($this->config["mode"] == "replace" or in_array($filename, $this->files["modified"]))
-					$this->writeFile($filename, $zip->getFromName($source));
+		foreach ($zip->listFiles() as $index => $filename) {
+			if (!$this->ignored($filename)) {
+				if (in_array($filename, $this->files["modified"]) or $this->config["mode"] == "replace")
+					$this->writeFile($filename, $zip->getFromIndex($index));
 			}
+			else
+				logMessage("Skipping ignored file " . $filename, LOG_VERBOSE);
 		}
 		// Delete removed files		
 		foreach ($this->files["removed"] as $filename) {
@@ -46,9 +46,10 @@ class GithubWebDeploy {
 		}
 		$this->cleanup();
 		if ($this->errors == 0)
-			logStatus("Repository deployed successfully", 200);
+			logStatus("Repository deployed successfully in mode '" . $this->config["mode"] . "'", 200);
 		else
-			logStatus("Repository deployed with " . $this->errors . ($this->errors > 1 ? " errors" : " error"), 500);
+			logStatus("Repository deployed in mode '" . $this->config["mode"] . "' with "
+					   . $this->errors . ($this->errors > 1 ? " errors" : " error"), 500);
 	}
 
 	// Select and verify correct config
@@ -174,6 +175,19 @@ class GithubWebDeploy {
 }
 
 
+class GithubZip extends ZipArchive {
+	// List the files found inside a GitHub commit archive root folder
+	function listFiles() {
+		$root = $this->getNameIndex(0);
+		for ($i = 1; $i < $this->numFiles; $i ++) {
+			if (substr($this->getNameIndex($i), -1) != "/")  // List files only
+				$files[$i] = str_replace($root, "", $this->getNameIndex($i));
+		}
+		return $files;
+	}
+}
+
+
 // Log to file
 function logMessage($message, $level=LOG_BASIC) {
 	global $logLevel;
@@ -187,7 +201,7 @@ function logMessage($message, $level=LOG_BASIC) {
 
 // Return an HTTP response code and message, and quit
 function logStatus($message, $code) {
-	if (floor($code / 100) != 2)
+	if (floor($code / 100) > 3)
 		$message = "Error: " . $message;
 	logMessage($message);
 	http_response_code($code);
