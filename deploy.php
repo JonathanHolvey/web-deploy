@@ -3,7 +3,6 @@
 const LOG_NONE = 0;
 const LOG_BASIC = 1;
 const LOG_VERBOSE = 2;
-const LOG_DEBUG = 3;
 
 $logLevel = LOG_BASIC;
 
@@ -123,6 +122,8 @@ class GithubWebDeploy {
 
 	// Load deployment config from config.json
 	function loadConfig() {
+		if (!file_exists("config.json"))
+			logStatus("Config file not found", 500);
 		return json_decode(file_get_contents("config.json"), true);
 	}
 
@@ -193,7 +194,7 @@ function logMessage($message, $level=LOG_BASIC) {
 	global $logLevel;
 	if ($level <= $logLevel and $logLevel > LOG_NONE) {
 		$prefix = date("c") . "  ";
-		$message = str_replace("\n", str_pad("\n", strlen($prefix)), $message);
+		$message = str_replace("\n", str_pad("\n", strlen($prefix) + 1), $message);
 		file_put_contents("./deploy.log", $prefix . $message . "\n", FILE_APPEND);		
 	}
 }
@@ -231,8 +232,8 @@ function countFiles($path) {
 	return count(array_diff(scandir($path), [".", ".."]));
 }
 
-// 
 
+// Run deployment
 if (in_array("HTTP_X_GITHUB_EVENT", array_keys($_SERVER))) {
 	if ($_SERVER["HTTP_X_GITHUB_EVENT"] == "ping")
 		logStatus("Ping received", 200);
