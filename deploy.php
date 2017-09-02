@@ -8,7 +8,7 @@ const LOG_DEBUG = 3;
 $logLevel = LOG_BASIC;
 
 
-class githubWebDeploy {
+class GithubWebDeploy {
 
 	function __construct() {
 		$this->files = null;
@@ -217,11 +217,13 @@ function countFiles($path) {
 	return count(array_diff(scandir($path), [".", ".."]));
 }
 
+// 
+
 if (in_array("HTTP_X_GITHUB_EVENT", array_keys($_SERVER))) {
 	if ($_SERVER["HTTP_X_GITHUB_EVENT"] == "ping")
 		logStatus("Ping received", 200);
 	else {
-		$deploy = new githubWebDeploy();
+		$deploy = new GithubWebDeploy();
 		$deploy->deploy();		
 	}
 }
