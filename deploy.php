@@ -48,7 +48,7 @@ class GithubWebDeploy {
 			logStatus("Repository deployed successfully in mode '" . $this->config["mode"] . "'", 200);
 		else
 			logStatus("Repository deployed in mode '" . $this->config["mode"] . "' with "
-					   . $this->errors . ($this->errors > 1 ? " errors" : " error"), 500);
+					  . $this->errors . ($this->errors > 1 ? " errors" : " error"), 500);
 	}
 
 	// Select and verify correct config
@@ -70,7 +70,7 @@ class GithubWebDeploy {
 		if ($this->config === null)
 			logStatus("The payload didn't match the deployment config", 401);
 		// Check config contains valid options
-		if (!in_array($this->config["mode"], ["update", "replace"]))
+		if (!in_array($this->config["mode"], ["update", "replace", "dry-run"]))
 			logStatus("The current mode option '" . $this->config["mode"] . "' is invalid", 500);
 		if (!is_writable($this->config["destination"]))
 			logStatus("The script can't write to the destination directory " . $this->config["destination"], 500);
@@ -131,11 +131,13 @@ class GithubWebDeploy {
 	function writeFile($filename, $data) {
 		$filename = $this->config["destination"] . "/" . $filename;
 		logMessage((file_exists($filename) ? "Replacing " : "Creating ") . "file " . $filename, LOG_VERBOSE);
-		if (!is_dir(dirname($filename)))
-			mkdir(dirname($filename), 0755, true);
-		if (file_put_contents($filename, $data) === false) {
-			logMessage("Error writing file " . $filename, LOG_BASIC);
-			$this->errors += 1;
+		if ($this->config["mode"] != "dry-run") {
+			if (!is_dir(dirname($filename)))
+				mkdir(dirname($filename), 0755, true);
+			if (file_put_contents($filename, $data) === false) {
+				logMessage("Error writing file " . $filename, LOG_BASIC);
+				$this->errors += 1;
+			}
 		}
 	}
 
@@ -144,17 +146,19 @@ class GithubWebDeploy {
 		$filename = $this->config["destination"] . "/" . $filename;
 		if (is_file($filename)) {
 			logMessage("Removing file " . $filename, LOG_VERBOSE);
-			if (unlink($filename)) {
-				// Traverse up file structure removing empty directories
-				$path = dirname($filename);
-				while ($path != $this->config["destination"] and countFiles($path) == 0) {
-					rmdir($path);
-					$path = dirname($path);
+			if ($this->config["mode"] != "dry-run") {
+				if (unlink($filename)) {
+					// Traverse up file structure removing empty directories
+					$path = dirname($filename);
+					while ($path != $this->config["destination"] and countFiles($path) == 0) {
+						rmdir($path);
+						$path = dirname($path);
+					}
 				}
-			}
-			else {
-				logMessage("Error removing file " . $filename, LOG_BASIC);
-				$this->errors += 1;
+				else {
+					logMessage("Error removing file " . $filename, LOG_BASIC);
+					$this->errors += 1;
+				}
 			}
 		}
 		else
