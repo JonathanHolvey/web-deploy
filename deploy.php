@@ -1,4 +1,13 @@
 <?php
+/**
+ * GitHub Web Deploy
+ * https://github.com/JonathanHolvey/github-web-deploy
+ * @author Jonathan Holvey
+ * @license GPLv3
+ * @version 0.1.0
+ */
+
+const VERSION_INFO = "GitHub Web Deploy v0.1.0";
 
 const LOG_NONE = 0;
 const LOG_BASIC = 1;
@@ -7,8 +16,7 @@ const LOG_VERBOSE = 2;
 $logLevel = LOG_BASIC;
 
 
-class GithubWebDeploy {
-
+class WebDeploy {
 	function __construct() {
 		$this->files = null;
 		$this->config = null;
@@ -210,7 +218,7 @@ function logStatus($message, $code) {
 		$message = "Error: " . $message;
 	logMessage($message);
 	http_response_code($code);
-	die($message);
+	die(VERSION_INFO . "\n" . $message);
 }
 
 
@@ -242,7 +250,7 @@ if (in_array("HTTP_X_GITHUB_EVENT", array_keys($_SERVER))) {
 	if ($_SERVER["HTTP_X_GITHUB_EVENT"] == "ping")
 		logStatus("Ping received", 200);
 	else {
-		$deploy = new GithubWebDeploy();
+		$deploy = new WebDeploy();
 		$deploy->deploy();		
 	}
 }
