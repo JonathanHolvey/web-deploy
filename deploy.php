@@ -20,10 +20,14 @@ class WebDeploy {
 	function __construct() {
 		$this->files = null;
 		$this->config = null;
+		$this->secret = null;
 		$this->zipname = null;
 		$this->errors = 0;
 
 		$this->payload = json_decode($_POST["payload"], true);
+		if (in_array("HTTP_X_HUB_SIGNATURE", array_keys($_SERVER)))
+			$secret = $_SERVER["HTTP_X_HUB_SIGNATURE"];
+
 		$this->verify();
 	}
 
@@ -62,10 +66,13 @@ class WebDeploy {
 	// Select and verify correct config
 	function verify() {
 		$required  = ["repository", "destination", "mode"];
-		foreach ($this->loadConfig() as $config) {
+		foreach ($this->loadConfig() as $index => $config) {
 			// Check required options are defined in config
 			if (count(array_diff($required, array_keys($config))) !== 0)
 				continue;
+			// Check secret, if supplied
+			if ((isset($this->config["secret"]) or !is_null($this->secret)) and $this->secret != $this->config["secret"])
+				continue;		
 			// Check repository
 			if ($this->payload["repository"]["url"] != $config["repository"])
 				continue;		
