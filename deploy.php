@@ -20,6 +20,7 @@ class WebDeploy {
 	function __construct() {
 		$this->files = null;
 		$this->config = null;
+		$this->destination = null;
 		$this->secret = null;
 		$this->zipname = null;
 		$this->errors = 0;
@@ -34,6 +35,19 @@ class WebDeploy {
 	function deploy() {
 		logMessage("Deploying " . substr($this->payload["head_commit"]["id"], 0, 6) . 
 				   " (" . basename($this->payload["ref"]) . ") " . "from " . $this->config["repository"]);
+		foreach ($this->config["destinations"] as $destination)
+			$this->deployTo($destination);
+		$this->cleanup();
+		if ($this->errors == 0)
+			logStatus("Repository deployed successfully in mode '" . $this->config["mode"] . "'", 200);
+		else
+			logStatus("Repository deployed in mode '" . $this->config["mode"] . "' with "
+					  . $this->errors . ($this->errors > 1 ? " errors" : " error"), 500);
+	}
+
+	function deployTo($destination) {
+		$this->destination = $destination;
+		logMessage("Destination: " . $this->destination, LOG_VERBOSE);
 		$this->parseCommits();
 		// Download and extract repository
 		if (!$this->getRepo())
@@ -55,19 +69,15 @@ class WebDeploy {
 			if (!$this->ignored($filename))
 				$this->removeFile($filename);
 		}
-		$this->cleanup();
-		if ($this->errors == 0)
-			logStatus("Repository deployed successfully in mode '" . $this->config["mode"] . "'", 200);
-		else
-			logStatus("Repository deployed in mode '" . $this->config["mode"] . "' with "
-					  . $this->errors . ($this->errors > 1 ? " errors" : " error"), 500);
+		$this->destination = null;
 	}
 
 	// Select and verify correct config
 	function verify() {
-		$required  = ["repository", "destination", "mode"];
-		foreach ($this->loadConfig() as $index => $config) {
-			// Check required options are defined in config
+		$required  = ["repository", "destinations", "mode"];
+		// Find first matching config
+		foreach ($this->loadConfig() as $config) {
+			// Check required options are defined
 			if (count(array_diff($required, array_keys($config))) !== 0)
 				continue;
 			// Check secret, if supplied
@@ -84,16 +94,25 @@ class WebDeploy {
 		}
 		if ($this->config === null)
 			logStatus("The payload didn't match the deployment config", 401);
-		// Check config contains valid options
+
+		// Check for valid mode option
 		if (!in_array($this->config["mode"], ["update", "replace", "dry-run"]))
 			logStatus("The current mode option '" . $this->config["mode"] . "' is invalid", 500);
-		if (!is_writable($this->config["destination"]))
-			logStatus("The script can't write to the destination directory " . $this->config["destination"], 500);
+
+		// Check and tidy all defined destinations
+		foreach ($this->config["destinations"] as $index => $destination) {
+			$this->config["destinations"][$index] = rtrim($destination, "/");
+			if (!is_writable($destination))
+				logStatus("The script can't write to the destination directory " . $destination, 500);
+		}
+
+		// Check installation directory is writable
 		if (!is_writable(dirname(__FILE__)))
 			logStatus("The script can't write to the deployment directory " . dirname(__FILE__), 500);
-		// Remove trailing slashes from paths
+
+		// Remove trailing slash from repository URL
 		$this->config["repository"] = rtrim($this->config["repository"], "/");
-		$this->config["destination"] = rtrim($this->config["destination"], "/");
+
 		// Set global log level
 		if (isset($this->config["log-level"]))
 			setLogLevel($this->config["log-level"]);
@@ -144,7 +163,7 @@ class WebDeploy {
 
 	// Create file from data string
 	function writeFile($filename, $data) {
-		$filename = $this->config["destination"] . "/" . $filename;
+		$filename = $this->destination . "/" . $filename;
 		logMessage((file_exists($filename) ? "Replacing " : "Creating ") . "file " . $filename, LOG_VERBOSE);
 		if ($this->config["mode"] != "dry-run") {
 			if (!is_dir(dirname($filename)))
@@ -158,14 +177,14 @@ class WebDeploy {
 
 	// Remove file and empty directories
 	function removeFile($filename) {
-		$filename = $this->config["destination"] . "/" . $filename;
+		$filename = $this->destination . "/" . $filename;
 		if (is_file($filename)) {
 			logMessage("Removing file " . $filename, LOG_VERBOSE);
 			if ($this->config["mode"] != "dry-run") {
 				if (unlink($filename)) {
 					// Traverse up file structure removing empty directories
 					$path = dirname($filename);
-					while ($path != $this->config["destination"] and countFiles($path) == 0) {
+					while ($path != $this->destination and countFiles($path) == 0) {
 						rmdir($path);
 						$path = dirname($path);
 					}
