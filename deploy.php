@@ -102,7 +102,11 @@ class WebDeploy {
 		// Check and tidy all defined destinations
 		foreach ($this->config["destinations"] as $index => $destination) {
 			$this->config["destinations"][$index] = rtrim($destination, "/");
-			if (!is_writable($destination))
+			if (!is_dir($destination)) {
+				if (!mkdir($destination, 0755, true))
+					logStatus("The script can't create the destination directory " . $destination, 500);
+			}
+			elseif (!is_writable($destination))
 				logStatus("The script can't write to the destination directory " . $destination, 500);
 		}
 
