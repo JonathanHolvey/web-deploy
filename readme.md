@@ -10,7 +10,7 @@ Multiple repositories or branches can be configured to be deployed to different 
 
 ### Requirements
 
-- Any server running PHP version 5.x or above.
+- Any server running PHP version 5.2 or above.
 - An installation directory which is publicly available from the web.
 
 ### Basic setup
