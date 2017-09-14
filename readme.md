@@ -19,11 +19,11 @@ Multiple repositories or branches can be configured to be deployed to different 
 2. Create the configuration file `config.json` in the same folder using the following example:
 ```json
 [
-	{
-		"repository": "https://github.com/username/deployment-test",
-		"destinations": ["/var/www/html"],
-		"mode": "update"
-	}
+    {
+        "repository": "https://github.com/username/deployment-test",
+        "destinations": ["/var/www/html"],
+        "mode": "update"
+    }
 ]
 ```
 3. Set the mandatory options `repository`, `destinations` and `mode` in the config file (see below for details).
@@ -58,28 +58,28 @@ The configuration file `config.json` can contain multiple configs, each defined 
 
 ```json
 [
-	{
-		"repository": "https://github.com/username/deployment-test",
-		"destinations": [
-			"/var/www/html",
-			"/var/www/html/example.com/lib"
-		],
-		"mode": "update"
-	},
-	{
-		"repository": "https://github.com/username/deployment-test",
-		"destinations": ["/var/www/html/staging"],
-		"mode": "update",
-		"branch": "develop"
-	},
-	{
-		"repository": "https://github.com/username/magic-deploy",
-		"destinations": ["/var/www/html/magic.example.com"],
-		"mode": "replace",
-		"branch": "master",
-		"ignore": [".gitignore", "user-content", "readme.md"],
-		"log-level": "verbose"
-	}
+    {
+        "repository": "https://github.com/username/deployment-test",
+        "destinations": [
+            "/var/www/html",
+            "/var/www/html/example.com/lib"
+        ],
+        "mode": "update"
+    },
+    {
+        "repository": "https://github.com/username/deployment-test",
+        "destinations": ["/var/www/html/staging"],
+        "mode": "update",
+        "branch": "develop"
+    },
+    {
+        "repository": "https://github.com/username/magic-deploy",
+        "destinations": ["/var/www/html/magic.example.com"],
+        "mode": "replace",
+        "branch": "master",
+        "ignore": [".gitignore", "user-content", "readme.md"],
+        "log-level": "verbose"
+    }
 ]
 ```
 
