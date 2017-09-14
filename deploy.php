@@ -93,7 +93,7 @@ class WebDeploy {
 			break;
 		}
 		if ($this->config === null)
-			logStatus("The payload didn't match the deployment config", 401);
+			logStatus("The webhook didn't match any deployment config", 401);
 
 		// Check for valid mode option
 		if (!in_array($this->config["mode"], ["update", "replace", "dry-run"]))
@@ -128,7 +128,7 @@ class WebDeploy {
 	// Gather file changes from each commit in sequence
 	function parseCommits() {
 		if (count($this->payload["commits"]) === 0)
-			logStatus("No commits were found in the payload", 400);
+			logStatus("No commits were found in the webhook payload", 400);
 		$modified = array();
 		$removed = array();
 		foreach ($this->payload["commits"] as $commit) {
