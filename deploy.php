@@ -200,7 +200,7 @@ class WebDeploy {
 			}
 		}
 		else
-			logMessage("Skipping file " . $filename . " - already removed", LOG_BASIC);
+			logMessage("Skipping file " . $filename . " - already removed", LOG_VERBOSE);
 	}
 
 	// Check to see if a file should be ignored
