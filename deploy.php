@@ -86,6 +86,14 @@ class WebDeploy {
 			// Check repository
 			if ($this->payload["repository"]["url"] != $config["repository"])
 				continue;		
+			// Check webhook event
+			if (isset($this->config["events"]) and !in_array($_SERVER["HTTP_X_GITHUB_EVENT"], $this->config["events"]))
+				continue;
+			// Check for pre-releases
+			if ($_SERVER["HTTP_X_GITHUB_EVENT"] == "release" and $this->payload["release"]["prerelease"] === true) {
+				if (isset($this->config["pre-releases"]) and $this->config["pre-releases"] !== true)
+					continue;
+			}
 			// Check branch
 			if (isset($config["branch"]) and basename($this->payload["ref"]) != $config["branch"])
 				continue;
