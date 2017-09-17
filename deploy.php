@@ -4,65 +4,73 @@
  * https://github.com/JonathanHolvey/web-deploy
  * @author Jonathan Holvey
  * @license GPLv3
- * @version 1.0.0-beta
+ * @version 1.1.0-beta
  */
 
-const VERSION_INFO = "GitHub Web Deploy v1.0.0-beta";
+const VERSION_INFO = "GitHub Web Deploy v1.1.0-beta";
 
 const LOG_NONE = 0;
 const LOG_BASIC = 1;
 const LOG_VERBOSE = 2;
 
-$logLevel = LOG_BASIC;
-
 
 class WebDeploy {
-	function __construct() {
+	function __construct($payload, $configs, &$logger) {
+		$this->payload = $payload;
+		$this->logger = $logger;
+		
 		$this->files = null;
 		$this->config = null;
 		$this->destination = null;
-		$this->secret = null;
+		$this->mode = null;
 		$this->zipname = null;
 		$this->errors = 0;
 
-		$this->payload = json_decode($_POST["payload"], true);
-		if (in_array("HTTP_X_HUB_SIGNATURE", array_keys($_SERVER)))
-			$secret = $_SERVER["HTTP_X_HUB_SIGNATURE"];
-
-		$this->verify();
+		$this->verify($configs);
 	}
 
 	function deploy() {
-		logMessage("Deploying " . substr($this->payload["head_commit"]["id"], 0, 6) . 
+		$this->logger->message("Deploying " . substr($this->payload["head_commit"]["id"], 0, 6) . 
 				   " (" . basename($this->payload["ref"]) . ") " . "from " . $this->config["repository"]);
 		foreach ($this->config["destinations"] as $destination)
 			$this->deployTo($destination);
 		$this->cleanup();
 		if ($this->errors == 0)
-			logStatus("Repository deployed successfully in mode '" . $this->config["mode"] . "'", 200);
+			$this->logger->success("Repository deployed successfully in mode '" . $this->config["mode"] . "'");
 		else
-			logStatus("Repository deployed in mode '" . $this->config["mode"] . "' with "
+			$this->logger->error("Repository deployed in mode '" . $this->config["mode"] . "' with "
 					  . $this->errors . ($this->errors > 1 ? " errors" : " error"), 500);
 	}
 
 	function deployTo($destination) {
 		$this->destination = $destination;
-		logMessage("Destination: " . $this->destination, LOG_VERBOSE);
+		$this->logger->message("Destination: " . $this->destination, LOG_VERBOSE);
+		// Set deployment mode for current destination
+		if (in_array($this->config["mode"], ["deploy", "dry-run"])) {
+			if ($this->countNotIgnored($destination) === 0) {
+				$this->logger->message("Destination is empty - deploying all files");
+				$this->mode = "replace";
+			}
+			$this->mode = "update";
+		}
+		else
+			$this->mode = $this->config["mode"];
+
 		$this->parseCommits();
 		// Download and extract repository
 		if (!$this->getRepo())
-			logStatus("The zip archive could not be downloaded", 400);
+			$this->logger->error("The zip archive could not be downloaded", 400);
 		$zip = new GithubZip;
 		if (!$zip->open($this->zipname))
-			logStatus("The zip archive could not be opened", 400);
+			$this->logger->error("The zip archive could not be opened", 400);
 		// Extract modified files
 		foreach ($zip->listFiles() as $index => $filename) {
 			if (!$this->ignored($filename)) {
-				if (in_array($filename, $this->files["modified"]) or $this->config["mode"] == "replace")
+				if (in_array($filename, $this->files["modified"]) or $this->mode == "replace")
 					$this->writeFile($filename, $zip->getFromIndex($index));
 			}
 			else
-				logMessage("Skipping ignored file " . $filename, LOG_VERBOSE);
+				$this->logger->message("Skipping ignored file " . $filename, LOG_VERBOSE);
 		}
 		// Delete removed files		
 		foreach ($this->files["removed"] as $filename) {
@@ -70,22 +78,28 @@ class WebDeploy {
 				$this->removeFile($filename);
 		}
 		$this->destination = null;
+		$this->mode = null;
 	}
 
 	// Select and verify correct config
-	function verify() {
+	function verify($configs) {
 		$required  = ["repository", "destinations", "mode"];
 		// Find first matching config
-		foreach ($this->loadConfig() as $config) {
+		foreach ($configs as $config) {
 			// Check required options are defined
 			if (count(array_diff($required, array_keys($config))) !== 0)
 				continue;
-			// Check secret, if supplied
-			if ((isset($this->config["secret"]) or !is_null($this->secret)) and $this->secret != $this->config["secret"])
-				continue;		
 			// Check repository
 			if ($this->payload["repository"]["url"] != $config["repository"])
 				continue;		
+			// Check webhook event
+			if (isset($this->config["events"]) and !in_array($_SERVER["HTTP_X_GITHUB_EVENT"], $this->config["events"]))
+				continue;
+			// Check for pre-releases
+			if ($_SERVER["HTTP_X_GITHUB_EVENT"] == "release" and $this->payload["release"]["prerelease"] === true) {
+				if (isset($this->config["pre-releases"]) and $this->config["pre-releases"] !== true)
+					continue;
+			}
 			// Check branch
 			if (isset($config["branch"]) and basename($this->payload["ref"]) != $config["branch"])
 				continue;
@@ -93,33 +107,33 @@ class WebDeploy {
 			break;
 		}
 		if ($this->config === null)
-			logStatus("The webhook didn't match any deployment config", 401);
+			$this->logger->error("The webhook didn't match any deployment config", 401);
 
 		// Check for valid mode option
-		if (!in_array($this->config["mode"], ["update", "replace", "dry-run"]))
-			logStatus("The current mode option '" . $this->config["mode"] . "' is invalid", 500);
+		if (!in_array($this->config["mode"], ["update", "replace", "deploy", "dry-run"]))
+			$this->logger->error("The current mode option '" . $this->config["mode"] . "' is invalid", 500);
 
 		// Check and tidy all defined destinations
 		foreach ($this->config["destinations"] as $index => $destination) {
 			$this->config["destinations"][$index] = rtrim($destination, "/");
 			if (!is_dir($destination)) {
 				if (!mkdir($destination, 0755, true))
-					logStatus("The script can't create the destination directory " . $destination, 500);
+					$this->logger->error("The script can't create the destination directory " . $destination, 500);
 			}
 			elseif (!is_writable($destination))
-				logStatus("The script can't write to the destination directory " . $destination, 500);
+				$this->logger->error("The script can't write to the destination directory " . $destination, 500);
 		}
 
 		// Check installation directory is writable
 		if (!is_writable(dirname(__FILE__)))
-			logStatus("The script can't write to the deployment directory " . dirname(__FILE__), 500);
+			$this->logger->error("The script can't write to the deployment directory " . dirname(__FILE__), 500);
 
 		// Remove trailing slash from repository URL
 		$this->config["repository"] = rtrim($this->config["repository"], "/");
 
-		// Set global log level
+		// Set log level
 		if (isset($this->config["log-level"]))
-			setLogLevel($this->config["log-level"]);
+			$this->logger->setLogLevel($this->config["log-level"]);
 	}
 
 	// Download repository as zip file from GitHub
@@ -132,7 +146,7 @@ class WebDeploy {
 	// Gather file changes from each commit in sequence
 	function parseCommits() {
 		if (count($this->payload["commits"]) === 0)
-			logStatus("No commits were found in the webhook payload", 400);
+			$this->logger->error("No commits were found in the webhook payload", 400);
 		$modified = array();
 		$removed = array();
 		foreach ($this->payload["commits"] as $commit) {
@@ -158,22 +172,15 @@ class WebDeploy {
 		}
 	}
 
-	// Load deployment config from config.json
-	function loadConfig() {
-		if (!file_exists("config.json"))
-			logStatus("Config file not found", 500);
-		return json_decode(file_get_contents("config.json"), true);
-	}
-
 	// Create file from data string
 	function writeFile($filename, $data) {
 		$filename = $this->destination . "/" . $filename;
-		logMessage((file_exists($filename) ? "Replacing " : "Creating ") . "file " . $filename, LOG_VERBOSE);
+		$this->logger->message((file_exists($filename) ? "Replacing " : "Creating ") . "file " . $filename, LOG_VERBOSE);
 		if ($this->config["mode"] != "dry-run") {
 			if (!is_dir(dirname($filename)))
 				mkdir(dirname($filename), 0755, true);
 			if (file_put_contents($filename, $data) === false) {
-				logMessage("Error writing file " . $filename, LOG_BASIC);
+				$this->logger->message("Error writing file " . $filename, LOG_BASIC);
 				$this->errors += 1;
 			}
 		}
@@ -183,7 +190,7 @@ class WebDeploy {
 	function removeFile($filename) {
 		$filename = $this->destination . "/" . $filename;
 		if (is_file($filename)) {
-			logMessage("Removing file " . $filename, LOG_VERBOSE);
+			$this->logger->message("Removing file " . $filename, LOG_VERBOSE);
 			if ($this->config["mode"] != "dry-run") {
 				if (unlink($filename)) {
 					// Traverse up file structure removing empty directories
@@ -194,13 +201,13 @@ class WebDeploy {
 					}
 				}
 				else {
-					logMessage("Error removing file " . $filename, LOG_BASIC);
+					$this->logger->message("Error removing file " . $filename, LOG_BASIC);
 					$this->errors += 1;
 				}
 			}
 		}
 		else
-			logMessage("Skipping file " . $filename . " - already removed", LOG_BASIC);
+			$this->logger->message("Skipping file " . $filename . " - already removed", LOG_VERBOSE);
 	}
 
 	// Check to see if a file should be ignored
@@ -214,6 +221,16 @@ class WebDeploy {
 			}
 		}
 		return false;
+	}
+
+	// Count the number of non-ignored files in a directory
+	function countNotIgnored($path) {
+		$count = 0;
+		foreach (scandir($path) as $file) {
+			if (!in_array($file, [".", ".."]) and !$this->ignored($file))
+				$count ++;
+		}
+		return $count;
 	}
 }
 
@@ -231,41 +248,68 @@ class GithubZip extends ZipArchive {
 }
 
 
-// Log to file
-function logMessage($message, $level=LOG_BASIC) {
-	global $logLevel;
-	if ($level <= $logLevel and $logLevel > LOG_NONE) {
-		$prefix = date("c") . "  ";
-		$message = str_replace("\n", str_pad("\n", strlen($prefix) + 1), $message);
-		file_put_contents("./deploy.log", $prefix . $message . "\n", FILE_APPEND);		
+class Logger {
+	function __construct($filename) {
+		$this->filename = $filename;
+		$this->logLevel = LOG_BASIC;
+		$this->statusMessage = VERSION_INFO;
+		$this->statusCode = 0;
 	}
-}
 
-
-// Return an HTTP response code and message, and quit
-function logStatus($message, $code) {
-	if (floor($code / 100) > 3)
-		$message = "Error: " . $message;
-	logMessage($message);
-	http_response_code($code);
-	die(VERSION_INFO . "\n" . $message);
-}
-
-
-// Set global log level to integer value
-function setLogLevel($level=LOG_BASIC) {
-	global $logLevel;
-	if (!is_int($level)) {
-		$levels = ["none" => LOG_NONE,
-				   "basic" => LOG_BASIC,
-				   "verbose" => LOG_VERBOSE,
-				   "debug" => LOG_DEBUG];
-		if (in_array($level, $levels))
-			$level = $levels[$level];
-		else
-			$level = LOG_BASIC;
+	// Set logger instance log level
+	function setLogLevel($level) {
+		if (!is_int($level)) {
+			$levels = ["none" => LOG_NONE,
+					   "basic" => LOG_BASIC,
+					   "verbose" => LOG_VERBOSE];
+			if (in_array($level, $levels))
+				$level = $levels[$level];
+			else
+				$level = LOG_BASIC;
+		}
+		$this->logLevel = $level;
 	}
-	$logLevel = $level;
+
+	// Log to file
+	function message($message, $level=LOG_BASIC) {
+		if ($level <= $this->logLevel and $this->logLevel > LOG_NONE) {
+			$prefix = date("c") . "  ";
+			$message = str_replace("\n", str_pad("\n", strlen($prefix) + 1), $message);
+			file_put_contents($this->filename, $prefix . $message . "\n", FILE_APPEND);		
+		}
+	}
+
+	// Set error code and message
+	function error($message, $code) {
+		$this->message("Error: " . $message);
+		$this->setStatus($message, $code);
+		$this->handleError();
+	}
+
+	// Set success code and message
+	function success($message) {
+		$this->message($message);
+		$this->setStatus($message, 200);
+	}
+
+	// Store status code and message, to be output in HTML
+	function setStatus($message, $code) {
+		if ($code > $this->statusCode)
+			$this->statusCode = $code;
+		$this->statusMessage .= "\n" . $message;
+	}
+
+	// Output status code and message
+	function sendStatus() {
+		http_response_code($this->statusCode);
+		echo($this->statusMessage);
+	}
+
+	// Quit on error
+	function handleError() {
+		$this->sendStatus();
+		exit;
+	}
 }
 
 
@@ -276,11 +320,17 @@ function countFiles($path) {
 
 
 // Run deployment
+$logger = new Logger("./deploy.log");
 if (in_array("HTTP_X_GITHUB_EVENT", array_keys($_SERVER))) {
 	if ($_SERVER["HTTP_X_GITHUB_EVENT"] == "ping")
-		logStatus("Ping received", 200);
-	else {
-		$deploy = new WebDeploy();
-		$deploy->deploy();		
+		$logger->success("Ping received");
+	elseif (file_exists("config.json")) {
+		$payload = json_decode($_POST["payload"], true);
+		$configs =  json_decode(file_get_contents("config.json"), true);
+		$deployment = new WebDeploy($payload, $configs, $logger);
+		$deployment->deploy();
 	}
+	else
+		$logger->error("Config file not found", 500);
 }
+$logger->sendStatus();
