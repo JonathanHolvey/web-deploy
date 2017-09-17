@@ -22,6 +22,7 @@ class WebDeploy {
 		$this->files = null;
 		$this->config = null;
 		$this->destination = null;
+		$this->mode = null;
 		$this->zipname = null;
 		$this->errors = 0;
 
@@ -44,6 +45,17 @@ class WebDeploy {
 	function deployTo($destination) {
 		$this->destination = $destination;
 		$this->logger->message("Destination: " . $this->destination, LOG_VERBOSE);
+		// Set deployment mode for current destination
+		if (in_array($this->config["mode"], ["deploy", "dry-run"])) {
+			if ($this->countNotIgnored($destination) === 0) {
+				$this->logger->message("Destination is empty - deploying all files");
+				$this->mode = "replace";
+			}
+			$this->mode = "update";
+		}
+		else
+			$this->mode = $this->config["mode"];
+
 		$this->parseCommits();
 		// Download and extract repository
 		if (!$this->getRepo())
@@ -54,7 +66,7 @@ class WebDeploy {
 		// Extract modified files
 		foreach ($zip->listFiles() as $index => $filename) {
 			if (!$this->ignored($filename)) {
-				if (in_array($filename, $this->files["modified"]) or $this->config["mode"] == "replace")
+				if (in_array($filename, $this->files["modified"]) or $this->mode == "replace")
 					$this->writeFile($filename, $zip->getFromIndex($index));
 			}
 			else
@@ -66,6 +78,7 @@ class WebDeploy {
 				$this->removeFile($filename);
 		}
 		$this->destination = null;
+		$this->mode = null;
 	}
 
 	// Select and verify correct config
@@ -97,7 +110,7 @@ class WebDeploy {
 			$this->logger->error("The webhook didn't match any deployment config", 401);
 
 		// Check for valid mode option
-		if (!in_array($this->config["mode"], ["update", "replace", "dry-run"]))
+		if (!in_array($this->config["mode"], ["update", "replace", "deploy", "dry-run"]))
 			$this->logger->error("The current mode option '" . $this->config["mode"] . "' is invalid", 500);
 
 		// Check and tidy all defined destinations
@@ -208,6 +221,16 @@ class WebDeploy {
 			}
 		}
 		return false;
+	}
+
+	// Count the number of non-ignored files in a directory
+	function countNotIgnored($path) {
+		$count = 0;
+		foreach (scandir($path) as $file) {
+			if (!in_array($file, [".", ".."]) and !$this->ignored($file))
+				$count ++;
+		}
+		return $count;
 	}
 }
 
