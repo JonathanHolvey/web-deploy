@@ -15,7 +15,8 @@ const LOG_VERBOSE = 2;
 
 
 class WebDeploy {
-	function __construct(&$logger) {
+	function __construct($payload, $configs, &$logger) {
+		$this->payload = $payload;
 		$this->logger = $logger;
 		
 		$this->files = null;
@@ -25,11 +26,10 @@ class WebDeploy {
 		$this->zipname = null;
 		$this->errors = 0;
 
-		$this->payload = json_decode($_POST["payload"], true);
 		if (in_array("HTTP_X_HUB_SIGNATURE", array_keys($_SERVER)))
 			$secret = $_SERVER["HTTP_X_HUB_SIGNATURE"];
 
-		$this->verify();
+		$this->verify($configs);
 	}
 
 	function deploy() {
@@ -73,10 +73,10 @@ class WebDeploy {
 	}
 
 	// Select and verify correct config
-	function verify() {
+	function verify($configs) {
 		$required  = ["repository", "destinations", "mode"];
 		// Find first matching config
-		foreach ($this->loadConfig() as $config) {
+		foreach ($configs as $config) {
 			// Check required options are defined
 			if (count(array_diff($required, array_keys($config))) !== 0)
 				continue;
@@ -164,13 +164,6 @@ class WebDeploy {
 			if (unlink($this->zipname))
 				$this->zipname = null;
 		}
-	}
-
-	// Load deployment config from config.json
-	function loadConfig() {
-		if (!file_exists("config.json"))
-			$this->logger->error("Config file not found", 500);
-		return json_decode(file_get_contents("config.json"), true);
 	}
 
 	// Create file from data string
@@ -315,9 +308,13 @@ $logger = new Logger("./deploy.log");
 if (in_array("HTTP_X_GITHUB_EVENT", array_keys($_SERVER))) {
 	if ($_SERVER["HTTP_X_GITHUB_EVENT"] == "ping")
 		$logger->success("Ping received");
-	else {
-		$deploy = new WebDeploy($logger);
-		$deploy->deploy();
+	elseif (file_exists("config.json")) {
+		$payload = json_decode($_POST["payload"], true);
+		$configs =  json_decode(file_get_contents("config.json"), true);
+		$deployment = new WebDeploy($payload, $configs, $logger);
+		$deployment->deploy();
 	}
+	else
+		$logger->error("Config file not found", 500);
 }
 $logger->sendStatus();
