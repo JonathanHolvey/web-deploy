@@ -22,12 +22,8 @@ class WebDeploy {
 		$this->files = null;
 		$this->config = null;
 		$this->destination = null;
-		$this->secret = null;
 		$this->zipname = null;
 		$this->errors = 0;
-
-		if (in_array("HTTP_X_HUB_SIGNATURE", array_keys($_SERVER)))
-			$secret = $_SERVER["HTTP_X_HUB_SIGNATURE"];
 
 		$this->verify($configs);
 	}
@@ -80,9 +76,6 @@ class WebDeploy {
 			// Check required options are defined
 			if (count(array_diff($required, array_keys($config))) !== 0)
 				continue;
-			// Check secret, if supplied
-			if ((isset($this->config["secret"]) or !is_null($this->secret)) and $this->secret != $this->config["secret"])
-				continue;		
 			// Check repository
 			if ($this->payload["repository"]["url"] != $config["repository"])
 				continue;		
