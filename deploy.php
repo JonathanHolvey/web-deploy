@@ -51,7 +51,8 @@ class WebDeploy {
 				$this->logger->message("Destination is empty - deploying all files");
 				$this->mode = "replace";
 			}
-			$this->mode = "update";
+			else
+				$this->mode = "update";
 		}
 		else
 			$this->mode = $this->config["mode"];
