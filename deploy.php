@@ -4,10 +4,10 @@
  * https://github.com/JonathanHolvey/web-deploy
  * @author Jonathan Holvey
  * @license GPLv3
- * @version 1.1.0-beta
+ * @version 1.1.1-beta
  */
 
-const VERSION_INFO = "GitHub Web Deploy v1.1.0-beta";
+const VERSION_INFO = "GitHub Web Deploy v1.1.1-beta";
 
 const LOG_NONE = 0;
 const LOG_BASIC = 1;
@@ -51,7 +51,8 @@ class WebDeploy {
 				$this->logger->message("Destination is empty - deploying all files");
 				$this->mode = "replace";
 			}
-			$this->mode = "update";
+			else
+				$this->mode = "update";
 		}
 		else
 			$this->mode = $this->config["mode"];
