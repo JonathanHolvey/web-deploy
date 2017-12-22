@@ -105,9 +105,17 @@ class WebDeploy {
 				if (isset($this->config["pre-releases"]) and $this->config["pre-releases"] !== true)
 					continue;
 			}
-			// Check branch
-			if (isset($config["branch"]) and basename($this->payload["ref"]) != $config["branch"])
-				continue;
+			// Check branch name
+			if (isset($config["branches"])) {
+				$branchMatch = false;
+				foreach ($config["branches"] as $branch) {
+					$branchRegex = "/^" . preg_quote($branch) . "/";
+					if (preg_match($branchRegex, basename($this->payload["ref"])))
+						$branchMatch = true;
+				}
+				if (!$branchMatch)
+					continue;
+			}
 			$this->config = $config;
 			break;
 		}

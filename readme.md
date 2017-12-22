@@ -44,7 +44,7 @@ The configuration file `config.json` can contain multiple configs, each defined 
         `deploy`: Use mode `replace` if the destination is empty (apart from ignored files) and `update` otherwise.  
         `dry-run`: As with `deploy`, but no files are actually changed. Changes are still recorded in the log file.
 
-**branch**: The branch of the repository to be deployed. This will be matched against the webhook payload.
+**branches**: An array of branch names (or name prefixes) to be deployed. This will be matched against the webhook payload.
 
 **events**: An array of webhook event names to enable deployment for. Valid options include `push`, `release`, `commit` etc.
 
@@ -75,13 +75,13 @@ The configuration file `config.json` can contain multiple configs, each defined 
         "repository": "https://github.com/username/deployment-test",
         "destinations": ["/var/www/html/staging"],
         "mode": "replace",
-        "branch": "develop"
+        "branches": ["develop", "release-"]
     },
     {
         "repository": "https://github.com/username/magic-deploy",
         "destinations": ["/var/www/html/magic.example.com"],
         "mode": "deploy",
-        "branch": "master",
+        "branches": ["master"],
         "ignore": [".gitignore", "user-content", "readme.md"],
         "log-level": "verbose"
     }
