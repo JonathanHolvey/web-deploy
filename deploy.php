@@ -4,10 +4,10 @@
  * https://github.com/JonathanHolvey/web-deploy
  * @author Jonathan Holvey
  * @license GPLv3
- * @version 1.1.1-beta
+ * @version 1.2.0-beta
  */
 
-const VERSION_INFO = "GitHub Web Deploy v1.1.1-beta";
+const VERSION_INFO = "GitHub Web Deploy v1.2.0-beta";
 
 const LOG_NONE = 0;
 const LOG_BASIC = 1;
@@ -46,7 +46,11 @@ class WebDeploy {
 		$this->destination = $destination;
 		$this->logger->message("Destination: " . $this->destination, LOG_VERBOSE);
 		// Set deployment mode for current destination
-		if (in_array($this->config["mode"], ["deploy", "dry-run"])) {
+		if ($this->payload["forced"] === true) {
+			$this->logger->message("Forced update - deploying all files");
+			$this->mode = "replace";
+		}
+		elseif (in_array($this->config["mode"], ["deploy", "dry-run"])) {
 			if ($this->countNotIgnored($destination) === 0) {
 				$this->logger->message("Destination is empty - deploying all files");
 				$this->mode = "replace";
@@ -67,7 +71,7 @@ class WebDeploy {
 		// Extract modified files
 		foreach ($zip->listFiles() as $index => $filename) {
 			if (!$this->ignored($filename)) {
-				if (in_array($filename, $this->files["modified"]) or $this->mode == "replace")
+				if ($this->mode == "replace" or in_array($filename, $this->files["modified"]))
 					$this->writeFile($filename, $zip->getFromIndex($index));
 			}
 			else
@@ -85,6 +89,7 @@ class WebDeploy {
 	// Select and verify correct config
 	function verify($configs) {
 		$required  = ["repository", "destinations", "mode"];
+		$filtered = [];
 		// Find first matching config
 		foreach ($configs as $config) {
 			// Check required options are defined
@@ -94,21 +99,39 @@ class WebDeploy {
 			if ($this->payload["repository"]["url"] != $config["repository"])
 				continue;		
 			// Check webhook event
-			if (isset($this->config["events"]) and !in_array($_SERVER["HTTP_X_GITHUB_EVENT"], $this->config["events"]))
+			if (isset($this->config["events"]) and !in_array($_SERVER["HTTP_X_GITHUB_EVENT"], $this->config["events"])) {
+				$filtered[] = "events";
 				continue;
+			}
 			// Check for pre-releases
 			if ($_SERVER["HTTP_X_GITHUB_EVENT"] == "release" and $this->payload["release"]["prerelease"] === true) {
 				if (isset($this->config["pre-releases"]) and $this->config["pre-releases"] !== true)
+					$filtered[] = "pre-releases";
 					continue;
 			}
-			// Check branch
-			if (isset($config["branch"]) and basename($this->payload["ref"]) != $config["branch"])
-				continue;
+			// Check branch name
+			if (isset($config["branches"])) {
+				$branchMatch = false;
+				foreach ($config["branches"] as $branch) {
+					if (preg_match("/^" . preg_quote($branch) . "/", basename($this->payload["ref"])))
+						$branchMatch = true;
+				}
+				if (!$branchMatch) {
+					$filtered[] = "branches";
+					continue;
+				}
+			}
 			$this->config = $config;
 			break;
 		}
-		if ($this->config === null)
-			$this->logger->error("The webhook didn't match any deployment config", 401);
+		// Return status if no config is fully matched
+		$filtered = array_unique($filtered);
+		if ($this->config === null) {
+			if (count($filtered) == 0)
+				$this->logger->error("The webhook didn't match any deployment config", 401);
+			else
+				$this->logger->error("The webhook was matched by repo URL, but config filters prevented deployment: " . implode($filtered, ", "), 202);
+		}
 
 		// Check for valid mode option
 		if (!in_array($this->config["mode"], ["update", "replace", "deploy", "dry-run"]))
@@ -146,7 +169,7 @@ class WebDeploy {
 
 	// Gather file changes from each commit in sequence
 	function parseCommits() {
-		if (count($this->payload["commits"]) === 0)
+		if (count($this->payload["commits"]) === 0 and $this->payload["forced"] !== true)
 			$this->logger->error("No commits were found in the webhook payload", 400);
 		$modified = array();
 		$removed = array();
