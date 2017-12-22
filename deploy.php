@@ -89,6 +89,7 @@ class WebDeploy {
 	// Select and verify correct config
 	function verify($configs) {
 		$required  = ["repository", "destinations", "mode"];
+		$filtered = [];
 		// Find first matching config
 		foreach ($configs as $config) {
 			// Check required options are defined
@@ -98,29 +99,39 @@ class WebDeploy {
 			if ($this->payload["repository"]["url"] != $config["repository"])
 				continue;		
 			// Check webhook event
-			if (isset($this->config["events"]) and !in_array($_SERVER["HTTP_X_GITHUB_EVENT"], $this->config["events"]))
+			if (isset($this->config["events"]) and !in_array($_SERVER["HTTP_X_GITHUB_EVENT"], $this->config["events"])) {
+				$filtered[] = "events";
 				continue;
+			}
 			// Check for pre-releases
 			if ($_SERVER["HTTP_X_GITHUB_EVENT"] == "release" and $this->payload["release"]["prerelease"] === true) {
 				if (isset($this->config["pre-releases"]) and $this->config["pre-releases"] !== true)
+					$filtered[] = "pre-releases";
 					continue;
 			}
 			// Check branch name
 			if (isset($config["branches"])) {
 				$branchMatch = false;
 				foreach ($config["branches"] as $branch) {
-					$branchRegex = "/^" . preg_quote($branch) . "/";
-					if (preg_match($branchRegex, basename($this->payload["ref"])))
+					if (preg_match("/^" . preg_quote($branch) . "/", basename($this->payload["ref"])))
 						$branchMatch = true;
 				}
-				if (!$branchMatch)
+				if (!$branchMatch) {
+					$filtered[] = "branches";
 					continue;
+				}
 			}
 			$this->config = $config;
 			break;
 		}
-		if ($this->config === null)
-			$this->logger->error("The webhook didn't match any deployment config", 401);
+		// Return status if no config is fully matched
+		$filtered = array_unique($filtered);
+		if ($this->config === null) {
+			if (count($filtered) == 0)
+				$this->logger->error("The webhook didn't match any deployment config", 401);
+			else
+				$this->logger->error("The webhook was matched by repo URL, but config filters prevented deployment: " . implode($filtered, ", "), 202);
+		}
 
 		// Check for valid mode option
 		if (!in_array($this->config["mode"], ["update", "replace", "deploy", "dry-run"]))
