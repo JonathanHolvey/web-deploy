@@ -39,7 +39,7 @@ The configuration file `config.json` can contain multiple configs, each defined 
 **destinations** (required): An array of one or more absolute paths on the webserver to which the repository should be deployed.
 
 **mode** (required): The mode the deployment should be performed in. Valid options are:  
-        `update`: Only the file changes specified in the payload are deployed.  
+        `update`: Only the file changes specified in the payload are deployed. Overridden by `git push --force`.  
         `replace`: All files are deployed, irrespective of whether they have changed.  
         `deploy`: Use mode `replace` if the destination is empty (apart from ignored files) and `update` otherwise.  
         `dry-run`: As with `deploy`, but no files are actually changed. Changes are still recorded in the log file.
