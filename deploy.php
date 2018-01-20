@@ -453,18 +453,20 @@ function countFiles($path) {
 }
 
 
-// Run deployment
-$logger = new Logger("./deploy.log");
-if (in_array("HTTP_X_GITHUB_EVENT", array_keys($_SERVER))) {
-	if ($_SERVER["HTTP_X_GITHUB_EVENT"] == "ping")
-		$logger->success("Ping received");
-	elseif (file_exists("config.json")) {
-		$payload = json_decode($_POST["payload"], true);
-		$configs =  json_decode(file_get_contents("config.json"), true);
-		$deployment = new WebDeploy($payload, $configs, $logger);
-		$deployment->deploy();
+if (__FILE__ == get_included_files()[0]) {
+	// Run deployment
+	$logger = new Logger("./deploy.log");
+	if (in_array("HTTP_X_GITHUB_EVENT", array_keys($_SERVER))) {
+		if ($_SERVER["HTTP_X_GITHUB_EVENT"] == "ping")
+			$logger->success("Ping received");
+		elseif (file_exists("config.json")) {
+			$payload = json_decode($_POST["payload"], true);
+			$configs =  json_decode(file_get_contents("config.json"), true);
+			$deployment = new WebDeploy($payload, $configs, $logger);
+			$deployment->deploy();
+		}
+		else
+			$logger->error("Config file not found", 500);
 	}
-	else
-		$logger->error("Config file not found", 500);
+	$logger->sendStatus();
 }
-$logger->sendStatus();
