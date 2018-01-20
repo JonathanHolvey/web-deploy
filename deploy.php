@@ -259,6 +259,57 @@ class WebDeploy {
 }
 
 
+abstract class Webhook {
+	function __construct($data) {
+		$this->raw = $data;
+		$this->properties = [
+			"event"=>null,
+			"repository"=>null,
+			"branch"=>null,
+			"hash"=>null,
+			"archive"=>null,
+			"commits"=>[],
+			"forced"=>false,
+			"pre-release"=>null
+		];
+		$this->parse($data);
+	}
+	function set($key, $value) {
+		$this->properties[$key] = $value;
+	}
+	function get($key) {
+		if (array_key_exists($key, $this->properties))
+			return $this->properties[$key];
+		else
+			return null;
+	}
+	abstract function parse($data);
+}
+
+
+class GitHubWebhook extends WebHook {
+	function parse($data) {
+		$this->set("event", $data["event"]);
+		$this->set("repository", $data["repository"]["url"]);
+		$this->set("branch", basename($data["ref"]));
+		$this->set("hash", $data["head_commit"]["id"]);
+		$this->set("archive", $this->get("repository") . "/archive/" . $this->get("hash") . ".zip");
+		$commits = [];
+		foreach ($data["commits"] as $commit)
+			$commits[] = [
+				"added"=>$commit["added"],
+				"removed"=>$commit["removed"],
+				"modified"=>$commit["modified"]
+			];
+		$this->set("commits", $commits);
+		if (array_key_exists("forced", $data))
+			$this->set("forced", $data["forced"]);
+		if (array_key_exists("release", $data))
+			$this->set("pre-release", $data["release"]["prerelease"]);
+	}
+}
+
+
 class ConfigRule {
 	const REQUIRED = ["repository", "destination", "mode"];
 	const VALID_MODES = ["update", "replace", "deploy", "dry-run"];
