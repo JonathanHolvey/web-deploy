@@ -38,6 +38,20 @@ final class ConfigRuleTest extends TestCase {
 		$rule = new ConfigRule([]);
 		$this->assertFalse($rule->validate());
 	}
+	function test_validate_forValidMode_returnsTrue (){
+		extract(defaults());
+		foreach (ConfigRule::VALID_MODES as $mode) {
+			$rule = new ConfigRule($configData);
+			$rule->set("mode", $mode);
+			$this->assertTrue($rule->validate());
+		}
+	}
+	function test_validate_forInvalidMode_returnsFalse (){
+		extract(defaults());
+		$rule = new ConfigRule($configData);
+		$rule->set("mode", null);
+		$this->assertFalse($rule->validate());
+	}
 	function test_compareTo_forMatchingRepository_returnsTrue() {
 		extract(defaults());
 		$hook = new TestWebHook($hookData);
