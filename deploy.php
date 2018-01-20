@@ -274,15 +274,18 @@ abstract class Webhook {
 		];
 		$this->parse($data);
 	}
+
 	function set($key, $value) {
 		$this->properties[$key] = $value;
 	}
+
 	function get($key) {
 		if (array_key_exists($key, $this->properties))
 			return $this->properties[$key];
 		else
 			return null;
 	}
+
 	abstract function parse($data);
 }
 
@@ -313,6 +316,7 @@ class GitHubWebhook extends WebHook {
 class ConfigRule {
 	const REQUIRED = ["repository", "destination", "mode"];
 	const VALID_MODES = ["update", "replace", "deploy", "dry-run"];
+
 	function __construct($data) {
 		$this->options = [
 			"branches"=>[],
@@ -323,10 +327,12 @@ class ConfigRule {
 		];
 		$this->parse($data);
 	}
+
 	function parse($data) {
 		foreach ($data as $key=>$value)
 			$this->set($key, $value);
 	}
+
 	function validate() {
 		$valid = true;
 		if (count($this->options) === 0)
@@ -337,15 +343,18 @@ class ConfigRule {
 			$valid = false;
 		return $valid;
 	}
+
 	function set($key, $value) {
 		$this->options[$key] = $value;
 	}
+
 	function get($key) {
 		if (array_key_exists($key, $this->options))
 			return $this->options[$key];
 		else
 			return null;
 	}
+	
 	function compareTo($hook) {
 		$match = true;
 		if ($this->get("repository") !== $hook->get("repository"))
