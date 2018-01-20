@@ -296,7 +296,8 @@ class GitHubWebhook extends WebHook {
 		$this->set("repository", $data["repository"]["url"]);
 		$this->set("branch", basename($data["ref"]));
 		$this->set("hash", $data["head_commit"]["id"]);
-		$this->set("archive", $this->get("repository") . "/archive/" . $this->get("hash") . ".zip");
+		$this->set("archive",  rtrim($this->get("repository"), "/")
+				   . "/archive/" . $this->get("hash") . ".zip");
 		$commits = [];
 		foreach ($data["commits"] as $commit)
 			$commits[] = [
@@ -325,6 +326,7 @@ class ConfigRule {
 			"ignore"=>[],
 			"log-level"=>"basic"
 		];
+		$this->filters = [];
 		$this->parse($data);
 	}
 
@@ -360,20 +362,28 @@ class ConfigRule {
 		if ($this->get("repository") !== $hook->get("repository"))
 			$match = false;
 		elseif (count($this->get("events")) > 0
-				&& !in_array($hook->get("event"), $this->get("events")))
+				&& !in_array($hook->get("event"), $this->get("events"))) {
+			$this->filters[] = "events";
 			$match = false;
+		}
 		elseif ($hook->get("event") == "release"
 				&& $hook->get("pre-release") === true
-				&& $this->get("pre-releases") !== true)
+				&& $this->get("pre-releases") !== true) {
+			$this->filters[] = "pre-releases";
 			$match = false;
+		}
 		else {
+			$branchMatch = false;
 			foreach ($this->get("branches") as $branch) {
 				if (strpos($hook->get("branch"), $branch) === 0)
-					break;
+					$branchMatch = true;
+			}
+			if (count($this->get("branches")) > 0 && !$branchMatch) {
 				$match = false;
+				$this->filters[] = "branches";
 			}
 		}
-		return $match;
+			return $match;
 	}
 }
 

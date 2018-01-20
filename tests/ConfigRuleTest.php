@@ -73,7 +73,7 @@ final class ConfigRuleTest extends TestCase {
 		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("event", "a");
-		$rule->set("events", ["a", "b"]);
+		$rule->set("events", ["b", "a"]);
 		$this->assertTrue($rule->compareTo($hook));
 	}
 	function test_compareTo_forDifferentEvent_returnsFalse() {
@@ -115,7 +115,7 @@ final class ConfigRuleTest extends TestCase {
 		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("branch", "a");
-		$rule->set("branches", ["a", "b"]);
+		$rule->set("branches", ["b", "a"]);
 		$this->assertTrue($rule->compareTo($hook));
 	}
 	function test_compareTo_forMatchingBranchPrefix_returnsTrue() {
@@ -123,7 +123,7 @@ final class ConfigRuleTest extends TestCase {
 		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("branch", "abc");
-		$rule->set("branches", ["a", "b"]);
+		$rule->set("branches", ["b", "a"]);
 		$this->assertTrue($rule->compareTo($hook));
 	}
 	function test_compareTo_forDifferentBranch_returnsFalse() {
