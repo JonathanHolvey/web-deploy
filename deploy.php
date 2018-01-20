@@ -394,6 +394,57 @@ class ConfigRule {
 }
 
 
+// Class to hold and manage entire deployment config
+class Config {
+	function __construct($json, $logger) {
+		$this->hook = null;
+		$this->logger = $logger;
+		$this->rules = [];
+		$this->valid = [];
+		$this->matched = [];
+		$this->parse($json);
+	}
+
+	function parse($json) {
+		foreach (json_decode($json, true) as $index=>$data) {
+			$this->addRule(new ConfigRule($data));
+		}
+	}
+
+	function addRule($rule) {
+		$index = count($this->rules);
+		$this->rules[$index] = $rule;
+		if ($rule->validate() === true)
+			$this->valid[] = $index;
+	}
+
+	function matchHook($hook) {
+		$this->hook = $hook;
+		$this->matched = [];
+		foreach ($this->valid as $index) {
+			$rule = $this->rules[$index];
+			if ($rule->compareTo($this->hook) === true)
+				$this->matched[] = $index;
+		}
+	}
+
+	// Log messages if issues were found in config rules
+	function checkRules() {
+		if (count($this->valid) === 0)
+			$this->logger->error("No valid rules were found in the deployment config", 500);
+		elseif (count($this->matched) === 0) {
+			$this->logger->error("The webhook couldn't be matched against any deployment config", 401);
+			foreach ($this->rules as $index=>$rule) {
+				if (count($rule->filters) > 0)
+					$this->logger->message("Rule $index was filtered by options "
+										   . implode(", ", $rule->filters));
+			}
+		}
+
+	}
+}
+
+
 class GithubZip extends ZipArchive {
 	// List the files found inside a GitHub commit archive root folder
 	function listFiles() {
