@@ -288,6 +288,25 @@ abstract class Webhook {
 	}
 
 	abstract function parse($data);
+
+	function collectChanges() {
+		$modified = [];
+		$removed = [];
+		foreach ($this->properties["commits"] as $commit) {
+			// List new and modified files
+			foreach (array_merge($commit["added"], $commit["modified"]) as $file) {
+				$removed = array_diff($removed, [$file]);
+				$modified[] = $file;
+			}
+			// List removed files
+			foreach ($commit["removed"] as $file) {
+				$modified = array_diff($modified, [$file]);
+				$removed[] = $file;
+			}
+		}
+		return ["modified"=>array_unique($modified),
+				"removed"=>array_unique($removed)];
+	}
 }
 
 
