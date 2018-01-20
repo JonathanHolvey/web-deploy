@@ -1,16 +1,10 @@
 <?php
 use PHPUnit\Framework\TestCase;
-include __dir__ . "/../deploy.php";
+include_once __dir__ . "/../deploy.php";
+include_once __dir__ . "/utils.php";
 
 
-class TestWebhook extends Webhook {
-	function parse($data) {
-		foreach ($data as $key=>$value)
-			$this->set($key, $value);
-	}
-}
-
-function defaults () {
+function configRuleDefaults () {
 	$configData = [
 		"repository"=>"https://test-repository",
 		"destination"=>"deploy-test",
@@ -23,12 +17,12 @@ function defaults () {
 
 final class ConfigRuleTest extends TestCase {
 	function test_validate_forAllRequiredOptions_returnsTrue() {
-		extract(defaults());
+		extract(configRuleDefaults());
 		$rule = new ConfigRule($configData);
 		$this->assertTrue($rule->validate());
 	}
 	function test_validate_forMissingRequiredOptions_returnsFalse() {
-		extract(defaults());
+		extract(configRuleDefaults());
 		foreach (ConfigRule::REQUIRED as $option) {
 			$data = $configData;
 			unset($data[$option]);
@@ -39,7 +33,7 @@ final class ConfigRuleTest extends TestCase {
 		$this->assertFalse($rule->validate());
 	}
 	function test_validate_forValidMode_returnsTrue (){
-		extract(defaults());
+		extract(configRuleDefaults());
 		foreach (ConfigRule::VALID_MODES as $mode) {
 			$rule = new ConfigRule($configData);
 			$rule->set("mode", $mode);
@@ -47,13 +41,13 @@ final class ConfigRuleTest extends TestCase {
 		}
 	}
 	function test_validate_forInvalidMode_returnsFalse (){
-		extract(defaults());
+		extract(configRuleDefaults());
 		$rule = new ConfigRule($configData);
 		$rule->set("mode", null);
 		$this->assertFalse($rule->validate());
 	}
 	function test_compareTo_forMatchingRepository_returnsTrue() {
-		extract(defaults());
+		extract(configRuleDefaults());
 		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("repository", "a");
@@ -61,7 +55,7 @@ final class ConfigRuleTest extends TestCase {
 		$this->assertTrue($rule->compareTo($hook));
 	}
 	function test_compareTo_forDifferentRepository_returnsFalse() {
-		extract(defaults());
+		extract(configRuleDefaults());
 		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("repository", "a");
@@ -69,7 +63,7 @@ final class ConfigRuleTest extends TestCase {
 		$this->assertFalse($rule->compareTo($hook));
 	}
 	function test_compareTo_forMatchingEvent_returnsTrue() {
-		extract(defaults());
+		extract(configRuleDefaults());
 		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("event", "a");
@@ -77,7 +71,7 @@ final class ConfigRuleTest extends TestCase {
 		$this->assertTrue($rule->compareTo($hook));
 	}
 	function test_compareTo_forDifferentEvent_returnsFalse() {
-		extract(defaults());
+		extract(configRuleDefaults());
 		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("event", "a");
@@ -85,7 +79,7 @@ final class ConfigRuleTest extends TestCase {
 		$this->assertFalse($rule->compareTo($hook));
 	}
 	function test_compareTo_forMatchingPreReleases_returnsTrue() {
-		extract(defaults());
+		extract(configRuleDefaults());
 		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("event", "release");
@@ -94,7 +88,7 @@ final class ConfigRuleTest extends TestCase {
 		$this->assertTrue($rule->compareTo($hook));
 	}
 	function test_compareTo_forDifferentPreReleases_returnsFalse() {
-		extract(defaults());
+		extract(configRuleDefaults());
 		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("event", "release");
@@ -103,7 +97,7 @@ final class ConfigRuleTest extends TestCase {
 		$this->assertFalse($rule->compareTo($hook));
 	}
 	function test_compareTo_forPreReleasesWithNonReleaseEvent_returnsTrue() {
-		extract(defaults());
+		extract(configRuleDefaults());
 		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("event", "push");
@@ -111,7 +105,7 @@ final class ConfigRuleTest extends TestCase {
 		$this->assertTrue($rule->compareTo($hook));
 	}
 	function test_compareTo_forMatchingBranch_returnsTrue() {
-		extract(defaults());
+		extract(configRuleDefaults());
 		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("branch", "a");
@@ -119,7 +113,7 @@ final class ConfigRuleTest extends TestCase {
 		$this->assertTrue($rule->compareTo($hook));
 	}
 	function test_compareTo_forMatchingBranchPrefix_returnsTrue() {
-		extract(defaults());
+		extract(configRuleDefaults());
 		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("branch", "abc");
@@ -127,7 +121,7 @@ final class ConfigRuleTest extends TestCase {
 		$this->assertTrue($rule->compareTo($hook));
 	}
 	function test_compareTo_forDifferentBranch_returnsFalse() {
-		extract(defaults());
+		extract(configRuleDefaults());
 		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("branch", "a");
