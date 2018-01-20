@@ -350,9 +350,12 @@ class ConfigRule {
 		$match = true;
 		if ($this->get("repository") !== $hook->get("repository"))
 			$match = false;
-		elseif (in_array($hook->get("event"), $this->get("events")))
+		elseif (count($this->get("events")) > 0
+				&& !in_array($hook->get("event"), $this->get("events")))
 			$match = false;
-		elseif ($hook->get("event") == "release" && $hook->get("pre-release") === true && $this->get("pre-releases") !== true)
+		elseif ($hook->get("event") == "release"
+				&& $hook->get("pre-release") === true
+				&& $this->get("pre-releases") !== true)
 			$match = false;
 		elseif (count($this->get("branches")) > 0) {
 			foreach ($this->get("branches") as $branch) {

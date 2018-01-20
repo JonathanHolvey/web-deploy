@@ -16,11 +16,7 @@ function defaults () {
 		"destination"=>"deploy-test",
 		"mode"=>"deploy"
 	];
-	$hookData = [
-		"branch"=>"master",
-		"repository"=>"https://test-repository",
-		"event"=>"push",
-	];
+	$hookData = ["repository"=>"https://test-repository"];
 	return ["configData"=>$configData, "hookData"=>$hookData];
 }
 
@@ -41,5 +37,63 @@ final class ConfigRuleTest extends TestCase {
 		}
 		$rule = new ConfigRule([]);
 		$this->assertFalse($rule->validate());
+	}
+	function test_compareTo_forMatchingRepository_returnsTrue() {
+		extract(defaults());
+		$hook = new TestWebHook($hookData);
+		$rule = new ConfigRule($configData);
+		$hook->set("repository", "a");
+		$rule->set("repository", "a");
+		$this->assertTrue($rule->compareTo($hook));
+	}
+	function test_compareTo_forDifferentRepository_returnsFalse() {
+		extract(defaults());
+		$hook = new TestWebHook($hookData);
+		$rule = new ConfigRule($configData);
+		$hook->set("repository", "a");
+		$rule->set("repository", "b");
+		$this->assertFalse($rule->compareTo($hook));
+	}
+	function test_compareTo_forMatchingEvent_returnsTrue() {
+		extract(defaults());
+		$hook = new TestWebHook($hookData);
+		$rule = new ConfigRule($configData);
+		$hook->set("event", "a");
+		$rule->set("events", ["a", "b"]);
+		$this->assertTrue($rule->compareTo($hook));
+	}
+	function test_compareTo_forDifferentEvent_returnsFalse() {
+		extract(defaults());
+		$hook = new TestWebHook($hookData);
+		$rule = new ConfigRule($configData);
+		$hook->set("event", "a");
+		$rule->set("events", ["b", "c"]);
+		$this->assertFalse($rule->compareTo($hook));
+	}
+	function test_compareTo_forMatchingPreReleases_returnsTrue() {
+		extract(defaults());
+		$hook = new TestWebHook($hookData);
+		$rule = new ConfigRule($configData);
+		$hook->set("event", "release");
+		$hook->set("pre-release", true);
+		$rule->set("pre-releases", true);
+		$this->assertTrue($rule->compareTo($hook));
+	}
+	function test_compareTo_forDifferentPreReleases_returnsFalse() {
+		extract(defaults());
+		$hook = new TestWebHook($hookData);
+		$rule = new ConfigRule($configData);
+		$hook->set("event", "release");
+		$hook->set("pre-release", true);
+		$rule->set("pre-releases", false);
+		$this->assertFalse($rule->compareTo($hook));
+	}
+	function test_compareTo_forPreReleasesWithNonReleaseEvent_returnsTrue() {
+		extract(defaults());
+		$hook = new TestWebHook($hookData);
+		$rule = new ConfigRule($configData);
+		$hook->set("event", "push");
+		$rule->set("pre-releases", true);
+		$this->assertTrue($rule->compareTo($hook));
 	}
 }
