@@ -357,10 +357,11 @@ class ConfigRule {
 				&& $hook->get("pre-release") === true
 				&& $this->get("pre-releases") !== true)
 			$match = false;
-		elseif (count($this->get("branches")) > 0) {
+		else {
 			foreach ($this->get("branches") as $branch) {
-				if (strpos($hook->get("branch"), $branch) !== 0)
-					$match = false;
+				if (strpos($hook->get("branch"), $branch) === 0)
+					break;
+				$match = false;
 			}
 		}
 		return $match;

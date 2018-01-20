@@ -96,4 +96,28 @@ final class ConfigRuleTest extends TestCase {
 		$rule->set("pre-releases", true);
 		$this->assertTrue($rule->compareTo($hook));
 	}
+	function test_compareTo_forMatchingBranch_returnsTrue() {
+		extract(defaults());
+		$hook = new TestWebHook($hookData);
+		$rule = new ConfigRule($configData);
+		$hook->set("branch", "a");
+		$rule->set("branches", ["a", "b"]);
+		$this->assertTrue($rule->compareTo($hook));
+	}
+	function test_compareTo_forMatchingBranchPrefix_returnsTrue() {
+		extract(defaults());
+		$hook = new TestWebHook($hookData);
+		$rule = new ConfigRule($configData);
+		$hook->set("branch", "abc");
+		$rule->set("branches", ["a", "b"]);
+		$this->assertTrue($rule->compareTo($hook));
+	}
+	function test_compareTo_forDifferentBranch_returnsFalse() {
+		extract(defaults());
+		$hook = new TestWebHook($hookData);
+		$rule = new ConfigRule($configData);
+		$hook->set("branch", "a");
+		$rule->set("branches", ["b", "c"]);
+		$this->assertFalse($rule->compareTo($hook));
+	}
 }
