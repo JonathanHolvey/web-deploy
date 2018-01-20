@@ -259,6 +259,7 @@ class WebDeploy {
 }
 
 
+// Base class to hold all webhook properties
 abstract class Webhook {
 	function __construct($data) {
 		$this->raw = $data;
@@ -290,6 +291,7 @@ abstract class Webhook {
 }
 
 
+// Translator for GitHub webhook format
 class GitHubWebhook extends WebHook {
 	function parse($data) {
 		$this->set("event", $data["event"]);
@@ -314,6 +316,7 @@ class GitHubWebhook extends WebHook {
 }
 
 
+// Class to hold, validate and match a single config rule
 class ConfigRule {
 	const REQUIRED = ["repository", "destination", "mode"];
 	const VALID_MODES = ["update", "replace", "deploy", "dry-run"];
@@ -330,11 +333,13 @@ class ConfigRule {
 		$this->parse($data);
 	}
 
+	// Load all options into array, overriding defaults
 	function parse($data) {
 		foreach ($data as $key=>$value)
 			$this->set($key, $value);
 	}
 
+	// Ensure rule can be used for deployment
 	function validate() {
 		$valid = true;
 		if (count($this->options) === 0)
@@ -357,6 +362,7 @@ class ConfigRule {
 			return null;
 	}
 	
+	// Attempt to match rule aginst webhook 
 	function compareTo($hook) {
 		$match = true;
 		if ($this->get("repository") !== $hook->get("repository"))
