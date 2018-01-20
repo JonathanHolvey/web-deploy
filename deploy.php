@@ -259,6 +259,61 @@ class WebDeploy {
 }
 
 
+class ConfigRule {
+	const REQUIRED = ["repository", "destination", "mode"];
+	const VALID_MODES = ["update", "replace", "deploy", "dry-run"];
+	function __construct($data) {
+		$this->options = [
+			"branches"=>[],
+			"events"=>[],
+			"pre-releases"=>false,
+			"ignore"=>[],
+			"log-level"=>"basic"
+		];
+		$this->parse($data);
+	}
+	function parse($data) {
+		foreach ($data as $key=>$value)
+			$this->set($key, $value);
+	}
+	function validate() {
+		$valid = true;
+		if (count($this->options) === 0)
+			$valid = false;
+		elseif (count(array_diff(self::REQUIRED, array_keys($this->options))) !== 0)
+			$valid = false;
+		elseif (!in_array($this->get("mode"), self::VALID_MODES))
+			$valid = false;
+		return $valid;
+	}
+	function set($key, $value) {
+		$this->options[$key] = $value;
+	}
+	function get($key) {
+		if (array_key_exists($key, $this->options))
+			return $this->options[$key];
+		else
+			return null;
+	}
+	function compareTo($hook) {
+		$match = true;
+		if ($this->get("repository") !== $hook->get("repository"))
+			$match = false;
+		elseif (in_array($hook->get("event"), $this->get("events")))
+			$match = false;
+		elseif ($hook->get("event") == "release" && $hook->get("pre-release") === true && $this->get("pre-releases") !== true)
+			$match = false;
+		elseif (count($this->get("branches")) > 0) {
+			foreach ($this->get("branches") as $branch) {
+				if (strpos($hook->get("branch"), $branch) !== 0)
+					$match = false;
+			}
+		}
+		return $match;
+	}
+}
+
+
 class GithubZip extends ZipArchive {
 	// List the files found inside a GitHub commit archive root folder
 	function listFiles() {
