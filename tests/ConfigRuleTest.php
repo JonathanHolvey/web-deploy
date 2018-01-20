@@ -10,8 +10,8 @@ function configRuleDefaults () {
 		"destination"=>"deploy-test",
 		"mode"=>"deploy"
 	];
-	$hookData = ["repository"=>"https://test-repository"];
-	return ["configData"=>$configData, "hookData"=>$hookData];
+	$hook = new TestWebhook(["repository"=>"https://test-repository"]);
+	return ["configData"=>$configData, "hook"=>$hook];
 }
 
 
@@ -48,7 +48,6 @@ final class ConfigRuleTest extends TestCase {
 	}
 	function test_compareTo_forMatchingRepository_returnsTrue() {
 		extract(configRuleDefaults());
-		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("repository", "a");
 		$rule->set("repository", "a");
@@ -56,7 +55,6 @@ final class ConfigRuleTest extends TestCase {
 	}
 	function test_compareTo_forDifferentRepository_returnsFalse() {
 		extract(configRuleDefaults());
-		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("repository", "a");
 		$rule->set("repository", "b");
@@ -64,7 +62,6 @@ final class ConfigRuleTest extends TestCase {
 	}
 	function test_compareTo_forMatchingEvent_returnsTrue() {
 		extract(configRuleDefaults());
-		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("event", "a");
 		$rule->set("events", ["b", "a"]);
@@ -72,7 +69,6 @@ final class ConfigRuleTest extends TestCase {
 	}
 	function test_compareTo_forDifferentEvent_returnsFalse() {
 		extract(configRuleDefaults());
-		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("event", "a");
 		$rule->set("events", ["b", "c"]);
@@ -80,7 +76,6 @@ final class ConfigRuleTest extends TestCase {
 	}
 	function test_compareTo_forMatchingPreReleases_returnsTrue() {
 		extract(configRuleDefaults());
-		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("event", "release");
 		$hook->set("pre-release", true);
@@ -89,7 +84,6 @@ final class ConfigRuleTest extends TestCase {
 	}
 	function test_compareTo_forDifferentPreReleases_returnsFalse() {
 		extract(configRuleDefaults());
-		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("event", "release");
 		$hook->set("pre-release", true);
@@ -98,7 +92,6 @@ final class ConfigRuleTest extends TestCase {
 	}
 	function test_compareTo_forPreReleasesWithNonReleaseEvent_returnsTrue() {
 		extract(configRuleDefaults());
-		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("event", "push");
 		$rule->set("pre-releases", true);
@@ -106,7 +99,6 @@ final class ConfigRuleTest extends TestCase {
 	}
 	function test_compareTo_forMatchingBranch_returnsTrue() {
 		extract(configRuleDefaults());
-		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("branch", "a");
 		$rule->set("branches", ["b", "a"]);
@@ -114,7 +106,6 @@ final class ConfigRuleTest extends TestCase {
 	}
 	function test_compareTo_forMatchingBranchPrefix_returnsTrue() {
 		extract(configRuleDefaults());
-		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("branch", "abc");
 		$rule->set("branches", ["b", "a"]);
@@ -122,7 +113,6 @@ final class ConfigRuleTest extends TestCase {
 	}
 	function test_compareTo_forDifferentBranch_returnsFalse() {
 		extract(configRuleDefaults());
-		$hook = new TestWebHook($hookData);
 		$rule = new ConfigRule($configData);
 		$hook->set("branch", "a");
 		$rule->set("branches", ["b", "c"]);
