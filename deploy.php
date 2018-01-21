@@ -413,6 +413,79 @@ class ConfigRule {
 }
 
 
+class Deployment {
+	function __construct($rule, $hook) {
+		$this->rule = $rule;
+		$this->hook = $hook;
+		$this->archive = null;
+	}
+
+	// Download repository as zip file
+	function getArchive() {
+		$filename = basename($this->hook->get("archive"));
+		if (file_put_contents($this->hook->get("archive"), fopen($url, "r")) !== false) {
+			$this->archive = $filename;
+			return true;
+		}
+		return false;
+	}
+
+	// Remove downloaded zip file
+	function cleanup() {
+		if ($this->archive !== null and is_file($this->archive)) {
+			if (unlink($this->archive))
+				$this->archive = null;
+		}
+	}
+
+	// Create file from data string
+	function writeFile($path, $data) {
+		if (!is_dir(dirname($filename)))
+			mkdir(dirname($filename), 0755, true);
+		if (file_put_contents($filename, $data) !== false)
+			return true;
+		return false;
+	}
+
+	// Remove file
+	function removeFile($path) {
+		if (is_file($path)) {
+			if (unlink($path))
+				return true;
+		}
+		return false;
+	}
+
+	// Remove empty directories
+	function cleanDirs($path) {
+		while ($path !== $this->rule->get("destination") and countFiles($path) === 0) {
+			rmdir($path);
+			$path = dirname($path);
+		}
+	}
+
+	// Check to see if a file should be ignored
+	function isIgnored($filename) {
+		foreach ($this->rule->get("ignore") as $pattern) {
+			if (fnmatch($pattern, $filename))
+				return true;
+		}
+		return false;
+	}
+
+	// Count the number of files in a directory, including ignored if required
+	function countFiles($path, $all=true) {
+		$count = 0;
+		$files = array_diff(scandir($path), [".", ".."]);
+		foreach ($files as $file) {
+			if ($all || !$this->isIgnored($file))
+				$count ++;
+		}
+		return $count;
+	}
+}
+
+
 // Class to hold and manage entire deployment config
 class Config {
 	function __construct($json, $logger) {
