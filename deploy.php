@@ -432,24 +432,24 @@ class Deployment {
 	function setup() {
 		$this->logger->setLogLevel($this->rule->get("log-level"));
 		$commitId = substr($this->hook->get("commit-id"), 0, 6);
-		$this->logger->message("Deploying $commitId (" . $this->hook->get("branch"))
+		$this->logger->message("Deploying $commitId (" . $this->hook->get("branch")
 							   . " from " . $this->hook->get("repository")
-							   . "\nDestination: " . $this->rule->get("destination");
+							   . "\nDestination: " . $this->rule->get("destination"));
 		// Create destination if it doesn't exist
-		if (!is_dir($this->rule->get("destination"))) {
-			if (!mkdir($this->rule->get("destination"))) {
+		if (!$this->is_dir($this->rule->get("destination"))) {
+			if (!$this->mkdir($this->rule->get("destination"))) {
 				$this->logger->error("Error creating destination directory "
 									 . $this->rule->get("destination"), 500);
 				return false;
 			}
 		}
 		// Check files can be written
-		elseif (!is_writable($this->rule->get("destination"))) {
+		elseif (!$this->is_writable($this->rule->get("destination"))) {
 			$this->logger->error("Cannot write to destination directory "
 								 . $this->rule->get("destination"), 500);
 			return false;
 		}
-		elseif (!is_writable(getcwd())) {
+		elseif (!$this->is_writable(getcwd())) {
 			$this->logger->error("Cannot write to working directory " . getcwd(), 500);
 			return false;			
 		}
@@ -460,7 +460,9 @@ class Deployment {
 			else
 				$this->deployMode = "update";
 		}
-		if ($this->rule->get("forced") === true) {
+		else
+			$this->deployMode = $this->rule->get("mode");
+		if ($this->hook->get("forced") === true) {
 			$this->deployMode = "replace";
 		}
 		return true;
@@ -528,6 +530,17 @@ class Deployment {
 				$count ++;
 		}
 		return $count;
+	}
+
+	// Wrappers for mocking builtin functions
+	function mkdir(...$args) {
+		return mkdir(...$args);
+	}
+	function is_dir(...$args) {
+		return is_dir(...$args);
+	}
+	function is_writable(...$args) {
+		return is_dir(...$args);
 	}
 }
 
