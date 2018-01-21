@@ -267,7 +267,7 @@ abstract class Webhook {
 			"event"=>null,
 			"repository"=>null,
 			"branch"=>null,
-			"hash"=>null,
+			"commit-id"=>null,
 			"archive"=>null,
 			"commits"=>[],
 			"forced"=>false,
@@ -316,9 +316,9 @@ class GitHubWebhook extends WebHook {
 		$this->set("event", $data["event"]);
 		$this->set("repository", $data["repository"]["url"]);
 		$this->set("branch", basename($data["ref"]));
-		$this->set("hash", $data["head_commit"]["id"]);
+		$this->set("commit-id", $data["head_commit"]["id"]);
 		$this->set("archive",  rtrim($this->get("repository"), "/")
-				   . "/archive/" . $this->get("hash") . ".zip");
+				   . "/archive/" . $this->get("commit-id") . ".zip");
 		$commits = [];
 		foreach ($data["commits"] as $commit)
 			$commits[] = [
@@ -408,16 +408,62 @@ class ConfigRule {
 				$this->filters[] = "branches";
 			}
 		}
-			return $match;
+		return $match;
 	}
 }
 
 
 class Deployment {
-	function __construct($rule, $hook) {
+	function __construct($rule, $hook, $logger) {
 		$this->rule = $rule;
 		$this->hook = $hook;
+		$this->logger = $logger;
+		$this->deployMode = null;
 		$this->archive = null;
+		$this->errors = 0;
+	}
+
+	function deploy() {
+		if ($this->setup() === true)
+			$this->deployFiles();
+	}
+
+	// Prepare to deploy
+	function setup() {
+		$this->logger->setLogLevel($this->rule->get("log-level"));
+		$commitId = substr($this->hook->get("commit-id"), 0, 6);
+		$this->logger->message("Deploying $commitId (" . $this->hook->get("branch"))
+							   . " from " . $this->hook->get("repository")
+							   . "\nDestination: " . $this->rule->get("destination");
+		// Create destination if it doesn't exist
+		if (!is_dir($this->rule->get("destination"))) {
+			if (!mkdir($this->rule->get("destination"))) {
+				$this->logger->error("Error creating destination directory "
+									 . $this->rule->get("destination"), 500);
+				return false;
+			}
+		}
+		// Check files can be written
+		elseif (!is_writable($this->rule->get("destination"))) {
+			$this->logger->error("Cannot write to destination directory "
+								 . $this->rule->get("destination"), 500);
+			return false;
+		}
+		elseif (!is_writable(getcwd())) {
+			$this->logger->error("Cannot write to working directory " . getcwd(), 500);
+			return false;			
+		}
+		// Determine actual deployment mode to use
+		if (in_array($this->rule->get("mode"), ["deploy", "dry-run"])) {
+			if (countFiles($this->rule->get("destination"), false) === 0)
+				$this->deployMode = "replace";
+			else
+				$this->deployMode = "update";
+		}
+		if ($this->rule->get("forced") === true) {
+			$this->deployMode = "replace";
+		}
+		return true;
 	}
 
 	// Download repository as zip file
