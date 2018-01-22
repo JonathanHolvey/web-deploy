@@ -425,7 +425,9 @@ class Deployment {
 
 	function deploy() {
 		if ($this->setup() === true)
-			$this->deployFiles();
+			return $this->deployFiles();
+		else
+			return false;
 	}
 
 	// Prepare to deploy
@@ -454,18 +456,70 @@ class Deployment {
 			return false;			
 		}
 		// Determine actual deployment mode to use
-		if (in_array($this->rule->get("mode"), ["deploy", "dry-run"])) {
-			if (countFiles($this->rule->get("destination"), false) === 0)
+		if ($this->hook->get("forced") === true) {
+			$this->deployMode = "replace";
+			$this->logger->message("Forced update - deploying all files");
+		}
+		elseif (in_array($this->rule->get("mode"), ["deploy", "dry-run"])) {
+			if (countFiles($this->rule->get("destination"), false) === 0) {
 				$this->deployMode = "replace";
+				$this->logger->message("Destination is empty - deploying all files");
+			}
 			else
 				$this->deployMode = "update";
 		}
 		else
 			$this->deployMode = $this->rule->get("mode");
-		if ($this->hook->get("forced") === true) {
-			$this->deployMode = "replace";
-		}
+
 		return true;
+	}
+
+	// Extract files according to webhook commit data
+	function deployFiles() {
+		if ($this->deployMode === null)
+			return false;
+		// Populate arrays $modified and $removed with lists files
+		extract($this->hook->collectChanges());
+		// Download and extract repository
+		if ($this->getArchive() !== true) {
+			$this->logger->error("The zip archive could not be downloaded", 400);
+			return false;
+		}
+		$zip = new GithubZip;
+		if (!$zip->open($this->zipname)) {
+			$this->logger->error("The zip archive could not be opened", 400);
+			return false;
+		}
+		// Extract modified files
+		foreach ($zip->listFiles() as $index=>$filename) {
+			if ($this->isIgnored($filename)) {
+				$this->logger->message("Skipping ignored file " . $filename, LOG_VERBOSE);
+				continue;
+			}
+			if ($this->deployMode !== "replace" && !in_array($filename, $modified))
+				continue;
+			$this->logger->message("Writing file " . $filename, LOG_VERBOSE);
+			if ($this->rule->get("mode") !== "dry-run") {
+				if ($this->writeFile($filename, $zip->getFromIndex($index)) !== true) {
+					$this->logger->message("Error writing file " . $filename, LOG_BASIC);
+					$this->errors += 1;
+				}
+			}
+		}
+		// Delete removed files		
+		foreach ($removed as $filename) {
+			if ($this->ignored($filename))
+				continue;
+			$this->logger->message("Removing file " . $filename, LOG_VERBOSE);
+			if ($this->rule->get("mode") !== "dry-run") {
+				if ($this->removeFile($filename) !== true) {
+					$this->logger->message("Error removing file " . $filename, LOG_BASIC);
+					$this->errors += 1;
+				}
+				else
+					$this->cleanDirs(basename($filename));
+			}
+		}
 	}
 
 	// Download repository as zip file
@@ -500,8 +554,9 @@ class Deployment {
 		if (is_file($path)) {
 			if (unlink($path))
 				return true;
+			return false;
 		}
-		return false;
+		return true;
 	}
 
 	// Remove empty directories
