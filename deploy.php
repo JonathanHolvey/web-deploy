@@ -425,7 +425,7 @@ class Deployment {
 
 	function deploy() {
 		if ($this->setup() === true)
-			return $this->deployFiles();
+			return $this->deployFiles($this->getMode());
 		else
 			return false;
 	}
@@ -455,29 +455,32 @@ class Deployment {
 			$this->logger->error("Cannot write to working directory " . getcwd(), 500);
 			return false;			
 		}
-		// Determine actual deployment mode to use
+		return true;
+	}
+
+	// Determine the actual deployment mode to use
+	function getMode() {
 		if ($this->hook->get("forced") === true) {
-			$this->deployMode = "replace";
+			$mode = "replace";
 			$this->logger->message("Forced update - deploying all files");
 		}
 		elseif (in_array($this->rule->get("mode"), ["deploy", "dry-run"])) {
 			if (countFiles($this->rule->get("destination"), false) === 0) {
-				$this->deployMode = "replace";
+				$mode = "replace";
 				$this->logger->message("Destination is empty - deploying all files");
 			}
 			else
-				$this->deployMode = "update";
+				$mode = "update";
 		}
 		else
-			$this->deployMode = $this->rule->get("mode");
-
-		return true;
+			$mode = $this->rule->get("mode");
+		return $mode;
 	}
 
 	// Extract files according to webhook commit data
-	function deployFiles() {
-		if ($this->deployMode === null)
-			return false;
+	function deployFiles($mode) {
+		if (!in_array($mode, ["deploy", "replace"]))
+			throw new Exception("The deploy mode should be one of 'deploy' or 'replace'");
 		// Populate arrays $modified and $removed with lists files
 		extract($this->hook->collectChanges());
 		// Download and extract repository
@@ -492,7 +495,7 @@ class Deployment {
 				$this->logger->message("Skipping ignored file " . $filename, LOG_VERBOSE);
 				continue;
 			}
-			if ($this->deployMode !== "replace" && !in_array($filename, $modified))
+			if ($mode !== "replace" && !in_array($filename, $modified))
 				continue;
 			$this->logger->message("Writing file " . $filename, LOG_VERBOSE);
 			if ($this->rule->get("mode") !== "dry-run") {

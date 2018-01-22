@@ -57,7 +57,7 @@ final class DeploymentTest extends TestCase {
 		$deploy->setup();
 		$this->assertEquals(LOG_VERBOSE, $logger->logLevel);
 	}
-	function test_setup_forModeDeployAndEmptyDestination_setsModeReplace() {
+	function test_getMode_forModeDeployAndEmptyDestination_returnsReplace() {
 		extract(deploymentDefaults());
 		$rule->set("mode", "deploy");
 		$deploy = $this->getMockBuilder("Deployment")
@@ -65,10 +65,9 @@ final class DeploymentTest extends TestCase {
 			->setMethods(["countFiles"])->getMock();
 		$map = [[$rule->get("destination"), 0]];
 		$deploy->method("countFiles")->will($this->returnValueMap($map));
-		$deploy->setup();
-		$this->assertEquals("replace", $deploy->deployMode);
+		$this->assertEquals("replace", $deploy->getMode());
 	}
-	function test_setup_forModeDryRunAndEmptyDestination_setsModeReplace() {
+	function test_getMode_forModeDryRunAndEmptyDestination_returnsReplace() {
 		extract(deploymentDefaults());
 		$rule->set("mode", "dry-run");
 		$deploy = $this->getMockBuilder("Deployment")
@@ -76,10 +75,9 @@ final class DeploymentTest extends TestCase {
 			->setMethods(["countFiles"])->getMock();
 		$map = [[$rule->get("destination"), 0]];
 		$deploy->method("countFiles")->will($this->returnValueMap($map));
-		$deploy->setup();
-		$this->assertEquals("replace", $deploy->deployMode);
+		$this->assertEquals("replace", $deploy->getMode());
 	}
-	function test_setup_forModeDeployAndNonEmptyDestination_setsModeUpdate() {
+	function test_getMode_forModeDeployAndNonEmptyDestination_returnsUpdate() {
 		extract(deploymentDefaults());
 		$rule->set("mode", "deploy");
 		$deploy = $this->getMockBuilder("Deployment")
@@ -87,10 +85,9 @@ final class DeploymentTest extends TestCase {
 			->setMethods(["countFiles"])->getMock();
 		$map = [[$rule->get("destination"), 1]];
 		$deploy->method("countFiles")->will($this->returnValueMap($map));
-		$deploy->setup();
-		$this->assertEquals("replace", $deploy->deployMode);
+		$this->assertEquals("replace", $deploy->getMode());
 	}
-	function test_setup_forModeDryRunAndNonEmptyDestination_setsModeUpdate() {
+	function test_getMode_forModeDryRunAndNonEmptyDestination_returnsUpdate() {
 		extract(deploymentDefaults());
 		$rule->set("mode", "dry-run");
 		$deploy = $this->getMockBuilder("Deployment")
@@ -98,29 +95,25 @@ final class DeploymentTest extends TestCase {
 			->setMethods(["countFiles"])->getMock();
 		$map = [[$rule->get("destination"), 1]];
 		$deploy->method("countFiles")->will($this->returnValueMap($map));
-		$deploy->setup();
-		$this->assertEquals("replace", $deploy->deployMode);
+		$this->assertEquals("replace", $deploy->getMode());
 	}
-	function test_setup_forModeUpdate_setsModeUpdate() {
+	function test_getMode_forModeUpdate_returnsUpdate() {
 		extract(deploymentDefaults());
 		$rule->set("mode", "update");
 		$deploy = new Deployment($rule, $hook, $logger);
-		$deploy->setup();
-		$this->assertEquals("update", $deploy->deployMode);		
+		$this->assertEquals("update", $deploy->getMode());		
 	}
-	function test_setup_forModeReplace_setsModeReplace() {
+	function test_getMode_forModeReplace_returnsReplace() {
 		extract(deploymentDefaults());
 		$rule->set("mode", "replace");
 		$deploy = new Deployment($rule, $hook, $logger);
-		$deploy->setup();
-		$this->assertEquals("replace", $deploy->deployMode);		
+		$this->assertEquals("replace", $deploy->getMode());		
 	}
-	function test_setup_forForcedDeployment_setsModeReplace() {
+	function test_getMode_forForcedDeployment_returnsReplace() {
 		extract(deploymentDefaults());
 		$rule->set("mode", "update");
 		$hook->set("forced", true);
 		$deploy = new Deployment($rule, $hook, $logger);
-		$deploy->setup();
-		$this->assertEquals("replace", $deploy->deployMode);		
+		$this->assertEquals("replace", $deploy->getMode());		
 	}
 }
