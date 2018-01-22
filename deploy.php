@@ -481,12 +481,8 @@ class Deployment {
 		// Populate arrays $modified and $removed with lists files
 		extract($this->hook->collectChanges());
 		// Download and extract repository
-		if ($this->getArchive() !== true) {
-			$this->logger->error("The zip archive could not be downloaded", 400);
-			return false;
-		}
-		$zip = new GithubZip;
-		if (!$zip->open($this->zipname)) {
+		$archive = $this->getArchive($this->hook->get("archive"));
+		if ($archive === false) {
 			$this->logger->error("The zip archive could not be opened", 400);
 			return false;
 		}
@@ -522,22 +518,18 @@ class Deployment {
 		}
 	}
 
-	// Download repository as zip file
-	function getArchive() {
-		$filename = basename($this->hook->get("archive"));
-		if (file_put_contents($this->hook->get("archive"), fopen($url, "r")) !== false) {
-			$this->archive = $filename;
-			return true;
+	// Download and open repository from zip file
+	function getArchive($url) {
+		$filename = basename($url);
+		if (file_put_contents($filename, fopen($url, "r")) !== false) {
+			$zip = new GitHubZip;
+			if ($zip->open($filename) === true) {
+				unlink($filename);
+				return $zip;
+			}
+			unlink($filename);
 		}
 		return false;
-	}
-
-	// Remove downloaded zip file
-	function cleanup() {
-		if ($this->archive !== null and is_file($this->archive)) {
-			if (unlink($this->archive))
-				$this->archive = null;
-		}
 	}
 
 	// Create file from data string
