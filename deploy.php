@@ -508,7 +508,7 @@ class Deployment {
 		}
 		// Delete removed files		
 		foreach ($removed as $filename) {
-			if ($this->isIgnored($filename))
+			if ($this->isIgnored($filename) || !$this->file_exists($filename))
 				continue;
 			$this->logger->message("Removing file " . $filename, LOG_VERBOSE);
 			if ($dryRun !== true) {
@@ -517,7 +517,7 @@ class Deployment {
 					$this->errors += 1;
 				}
 				else
-					$this->cleanDirs(basename($filename));
+					$this->cleanDirs(dirname($filename));
 			}
 		}
 		return true;
@@ -593,6 +593,9 @@ class Deployment {
 	}
 	function is_writable(...$args) {
 		return is_dir(...$args);
+	}
+	function file_exists(...$args) {
+		return file_exists(...$args);
 	}
 }
 
