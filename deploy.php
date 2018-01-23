@@ -539,9 +539,9 @@ class Deployment {
 
 	// Create file from data string
 	function writeFile($path, $data) {
-		if (!is_dir(dirname($filename)))
-			mkdir(dirname($filename), 0755, true);
-		if (file_put_contents($filename, $data) !== false)
+		if (!is_dir(dirname($path)))
+			mkdir(dirname($path), 0755, true);
+		if (file_put_contents($path, $data) !== false)
 			return true;
 		return false;
 	}
