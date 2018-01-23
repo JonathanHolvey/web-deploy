@@ -36,7 +36,7 @@ final class DeploymentTest extends TestCase {
 		extract(deploymentDefaults());
 		$deploy = $this->getMockBuilder("Deployment")
 			->setConstructorArgs([$rule, $hook, $logger])
-			->setMethods(["is_writable"])->getMock();
+			->setMethods(["is_writable", "mkdir"])->getMock();
 		$map = [[$rule->get("destination"), false]];
 		$deploy->method("is_writable")->will($this->returnValueMap($map));
 		$this->assertFalse($deploy->setup());
@@ -45,7 +45,7 @@ final class DeploymentTest extends TestCase {
 		extract(deploymentDefaults());
 		$deploy = $this->getMockBuilder("Deployment")
 			->setConstructorArgs([$rule, $hook, $logger])
-			->setMethods(["is_writable"])->getMock();
+			->setMethods(["is_writable", "mkdir"])->getMock();
 		$map = [[getcwd(), false]];
 		$deploy->method("is_writable")->will($this->returnValueMap($map));
 		$this->assertFalse($deploy->setup());
@@ -53,7 +53,9 @@ final class DeploymentTest extends TestCase {
 	function test_setup_forProvidedLogLevel_appliedToLogger() {
 		extract(deploymentDefaults());
 		$rule->set("log-level", "verbose");
-		$deploy = new Deployment($rule, $hook, $logger);
+		$deploy = $this->getMockBuilder("Deployment")
+			->setConstructorArgs([$rule, $hook, $logger])
+			->setMethods(["is_writable", "mkdir"])->getMock();
 		$deploy->setup();
 		$this->assertEquals(LOG_VERBOSE, $logger->logLevel);
 	}
