@@ -465,7 +465,7 @@ class Deployment {
 			$this->logger->message("Forced update - deploying all files");
 		}
 		elseif (in_array($this->rule->get("mode"), ["deploy", "dry-run"])) {
-			if (countFiles($this->rule->get("destination"), false) === 0) {
+			if ($this->countFiles($this->rule->get("destination"), false) === 0) {
 				$mode = "replace";
 				$this->logger->message("Destination is empty - deploying all files");
 			}
