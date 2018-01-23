@@ -478,9 +478,7 @@ class Deployment {
 	}
 
 	// Extract files according to webhook commit data
-	function deployFiles($mode) {
-		if (!in_array($mode, ["deploy", "replace"]))
-			throw new Exception("The deploy mode should be one of 'deploy' or 'replace'");
+	function deployFiles($allFiles=false, $dryRun=false) {
 		// Populate arrays $modified and $removed with lists files
 		extract($this->hook->collectChanges());
 		// Download and extract repository
@@ -490,16 +488,16 @@ class Deployment {
 			return false;
 		}
 		// Extract modified files
-		foreach ($zip->listFiles() as $index=>$filename) {
+		foreach ($archive->listFiles() as $index=>$filename) {
 			if ($this->isIgnored($filename)) {
 				$this->logger->message("Skipping ignored file " . $filename, LOG_VERBOSE);
 				continue;
 			}
-			if ($mode !== "replace" && !in_array($filename, $modified))
+			if ($allFiles !== true && !in_array($filename, $modified))
 				continue;
 			$this->logger->message("Writing file " . $filename, LOG_VERBOSE);
-			if ($this->rule->get("mode") !== "dry-run") {
-				if ($this->writeFile($filename, $zip->getFromIndex($index)) !== true) {
+			if ($dryRun !== true) {
+				if ($this->writeFile($filename, $archive->getFromIndex($index)) !== true) {
 					$this->logger->message("Error writing file " . $filename, LOG_BASIC);
 					$this->errors += 1;
 				}
@@ -507,10 +505,10 @@ class Deployment {
 		}
 		// Delete removed files		
 		foreach ($removed as $filename) {
-			if ($this->ignored($filename))
+			if ($this->isIgnored($filename))
 				continue;
 			$this->logger->message("Removing file " . $filename, LOG_VERBOSE);
-			if ($this->rule->get("mode") !== "dry-run") {
+			if ($dryRun !== true) {
 				if ($this->removeFile($filename) !== true) {
 					$this->logger->message("Error removing file " . $filename, LOG_BASIC);
 					$this->errors += 1;
@@ -519,6 +517,7 @@ class Deployment {
 					$this->cleanDirs(basename($filename));
 			}
 		}
+		return true;
 	}
 
 	// Download and open repository from zip file
