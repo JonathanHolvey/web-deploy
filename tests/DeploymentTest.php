@@ -118,4 +118,154 @@ final class DeploymentTest extends TestCase {
 		$deploy = new Deployment($rule, $hook, $logger);
 		$this->assertEquals("replace", $deploy->getMode());		
 	}
+	function test_deployFiles_forProblemZipFile_returnsFalse() {
+		extract(deploymentDefaults());
+		$deploy = $this->getMockBuilder("Deployment")
+			->setConstructorArgs([$rule, $hook, $logger])
+			->setMethods(["getArchive"])->getMock();
+		$deploy->method("getArchive")->willReturn(false);
+		$this->assertFalse($deploy->deployFiles("replace"));
+	}
+	function test_deployFiles_forAllFilesTrue_deploysAllFiles() {
+		extract(deploymentDefaults());
+		$hook->set("commits", [["added"=>["a"], "modified"=>[], "removed"=>[]]]);
+		$zip = $this->getMockBuilder("GitHubZip")
+			->setMethods(["listFiles", "getFromIndex"])->getMock();
+		$zip->method("listFiles")->willReturn(["a", "b", "c"]);
+		$deploy = $this->getMockBuilder("Deployment")
+			->setConstructorArgs([$rule, $hook, $logger])
+			->setMethods(["writeFile", "removeFile", "getArchive"])->getMock();
+		$deploy->method("getArchive")->willReturn($zip);
+		$deploy->expects($this->exactly(3))->method("writeFile")
+			->withConsecutive(
+				[$this->equalTo("a")],
+				[$this->equalTo("b")],
+				[$this->equalTo("c")]
+			);
+		$deploy->deployFiles(true);
+	}
+	function test_deployFiles_forallFilesFalse_deploysNewFiles() {
+		extract(deploymentDefaults());
+		$hook->set("commits", [["added"=>["a", "b"], "modified"=>[], "removed"=>[]]]);
+		$zip = $this->getMockBuilder("GitHubZip")
+			->setMethods(["listFiles", "getFromIndex"])->getMock();
+		$zip->method("listFiles")->willReturn(["a", "b", "c"]);
+		$deploy = $this->getMockBuilder("Deployment")
+			->setConstructorArgs([$rule, $hook, $logger])
+			->setMethods(["writeFile", "removeFile", "getArchive"])->getMock();
+		$deploy->method("getArchive")->willReturn($zip);
+		$deploy->expects($this->exactly(2))->method("writeFile")
+			->withConsecutive(
+				[$this->equalTo("a")],
+				[$this->equalTo("b")]
+			);
+		$deploy->deployFiles(false);
+	}
+	function test_deployFiles_forallFilesFalse_deploysModifiedFiles() {
+		extract(deploymentDefaults());
+		$hook->set("commits", [["added"=>[], "modified"=>["a", "b"], "removed"=>[]]]);
+		$zip = $this->getMockBuilder("GitHubZip")
+			->setMethods(["listFiles", "getFromIndex"])->getMock();
+		$zip->method("listFiles")->willReturn(["a", "b", "c"]);
+		$deploy = $this->getMockBuilder("Deployment")
+			->setConstructorArgs([$rule, $hook, $logger])
+			->setMethods(["writeFile", "removeFile", "getArchive"])->getMock();
+		$deploy->method("getArchive")->willReturn($zip);
+		$deploy->expects($this->exactly(2))->method("writeFile")
+			->withConsecutive(
+				[$this->equalTo("a")],
+				[$this->equalTo("b")]
+			);
+		$deploy->deployFiles(false);
+	}
+	function test_deployFiles_forallFilesFalse_deletesRemovedFiles() {
+		extract(deploymentDefaults());
+		$hook->set("commits", [["added"=>[], "modified"=>[], "removed"=>["a", "b"]]]);
+		$zip = $this->getMockBuilder("GitHubZip")
+			->setMethods(["listFiles", "getFromIndex"])->getMock();
+		$zip->method("listFiles")->willReturn(["c"]);
+		$deploy = $this->getMockBuilder("Deployment")
+			->setConstructorArgs([$rule, $hook, $logger])
+			->setMethods(["writeFile", "removeFile", "getArchive"])->getMock();
+		$deploy->method("getArchive")->willReturn($zip);
+		$deploy->expects($this->exactly(2))->method("removeFile")
+			->withConsecutive(
+				[$this->equalTo("a")],
+				[$this->equalTo("b")]
+			);
+		$deploy->deployFiles(false);
+	}
+	function test_deployFiles_forIgnoredFilesModified_doesNotDeployFiles() {
+		extract(deploymentDefaults());
+		$rule->set("ignore", ["a", "b"]);
+		$hook->set("commits", [["added"=>[], "modified"=>["a", "b", "c"], "removed"=>[]]]);
+		$zip = $this->getMockBuilder("GitHubZip")
+			->setMethods(["listFiles", "getFromIndex"])->getMock();
+		$zip->method("listFiles")->willReturn(["a", "b", "c"]);
+		$deploy = $this->getMockBuilder("Deployment")
+			->setConstructorArgs([$rule, $hook, $logger])
+			->setMethods(["writeFile", "removeFile", "getArchive"])->getMock();
+		$deploy->method("getArchive")->willReturn($zip);
+		$deploy->expects($this->exactly(1))->method("writeFile")
+			->withConsecutive(
+				[$this->equalTo("c")]
+			);
+		$deploy->deployFiles(true);
+	}
+	function test_deployFiles_forIgnoredFilesRemoved_doesNotDeleteFiles() {
+		extract(deploymentDefaults());
+		$rule->set("ignore", ["a", "b"]);
+		$hook->set("commits", [["added"=>[], "modified"=>[], "removed"=>["a", "b", "c"]]]);
+		$zip = $this->getMockBuilder("GitHubZip")
+			->setMethods(["listFiles", "getFromIndex"])->getMock();
+		$zip->method("listFiles")->willReturn([]);
+		$deploy = $this->getMockBuilder("Deployment")
+			->setConstructorArgs([$rule, $hook, $logger])
+			->setMethods(["writeFile", "removeFile", "getArchive"])->getMock();
+		$deploy->method("getArchive")->willReturn($zip);
+		$deploy->expects($this->exactly(1))->method("removeFile")
+			->withConsecutive(
+				[$this->equalTo("c")]
+			);
+		$deploy->deployFiles(true);
+	}
+	function test_deployFiles_forDryRunMode_doesNotDeployFiles() {
+		extract(deploymentDefaults());
+		$hook->set("commits", [["added"=>["a", "b"], "modified"=>["c"], "removed"=>[]]]);
+		$zip = $this->getMockBuilder("GitHubZip")
+			->setMethods(["listFiles", "getFromIndex"])->getMock();
+		$zip->method("listFiles")->willReturn(["a", "b", "c"]);
+		$deploy = $this->getMockBuilder("Deployment")
+			->setConstructorArgs([$rule, $hook, $logger])
+			->setMethods(["writeFile", "removeFile", "getArchive"])->getMock();
+		$deploy->method("getArchive")->willReturn($zip);
+		$deploy->expects($this->never())->method("writeFile");
+		$deploy->deployFiles(true, true);
+	}
+	function test_deployFiles_forDryRunMode_doesNotDeleteFiles() {
+		extract(deploymentDefaults());
+		$hook->set("commits", [["added"=>[], "modified"=>[], "removed"=>["a", "b"]]]);
+		$zip = $this->getMockBuilder("GitHubZip")
+			->setMethods(["listFiles", "getFromIndex"])->getMock();
+		$zip->method("listFiles")->willReturn(["c"]);
+		$deploy = $this->getMockBuilder("Deployment")
+			->setConstructorArgs([$rule, $hook, $logger])
+			->setMethods(["writeFile", "removeFile", "getArchive"])->getMock();
+		$deploy->method("getArchive")->willReturn($zip);
+		$deploy->expects($this->never())->method("removeFile");
+		$deploy->deployFiles(true, true);
+	}
+	function test_deployFiles_forDryRunMode_doesNotCreateDirectories() {
+		extract(deploymentDefaults());
+		$hook->set("commits", [["added"=>["a/b", "c/d"], "modified"=>[], "removed"=>[]]]);
+		$zip = $this->getMockBuilder("GitHubZip")
+			->setMethods(["listFiles", "getFromIndex"])->getMock();
+		$zip->method("listFiles")->willReturn(["a/b", "c/d"]);
+		$deploy = $this->getMockBuilder("Deployment")
+			->setConstructorArgs([$rule, $hook, $logger])
+			->setMethods(["writeFile", "removeFile", "getArchive", "mkdir"])->getMock();
+		$deploy->method("getArchive")->willReturn($zip);
+		$deploy->expects($this->never())->method("mkdir");
+		$deploy->deployFiles(true, true);
+	}
 }
