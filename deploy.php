@@ -424,8 +424,11 @@ class Deployment {
 	}
 
 	function deploy() {
-		if ($this->setup() === true)
-			return $this->deployFiles($this->getMode());
+		if ($this->setup() === true) {
+			$allFiles = $this->getMode() == "replace";
+			$dryRun = $rule->get("mode") == "dry-run";
+			return $this->deployFiles($allFiles, $dryRun);
+		}
 		else
 			return false;
 	}
