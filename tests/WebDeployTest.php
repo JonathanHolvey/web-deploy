@@ -5,7 +5,7 @@ include_once __dir__ . "/utils.php";
 
 
 function configDefaults() {
-	$logger = new TestLogger("nul");
+	$logger = new Logger("nul");
 	$rule = new ConfigRule([
 		"repository"=>"https://test-repository",
 		"destination"=>"deploy-test",
@@ -19,29 +19,29 @@ function configDefaults() {
 final class ConfigTest extends TestCase {
 	function test_addRule_forValidConfigRules_includedInValidArray() {
 		extract(configDefaults());
-		$config = new Config("[]", $logger);
+		$config = new WebDeploy("[]", $logger);
 		$config->addRule($rule);
 		$this->assertContains(0, $config->valid);
 	}
 	function test_addRule_forInvalidConfigRules_excludedFromValidArray() {
 		extract(configDefaults());
-		$config = new Config("[]", $logger);
+		$config = new WebDeploy("[]", $logger);
 		$rule->set("mode", null);
 		$config->addRule($rule);
 		$this->assertNotContains(0, $config->valid);
 	}
-	function test_addRule_forMatchedConfigRules_includedInMatchedArray() {
+	function test_matchHook_forMatchedConfigRules_includedInMatchedArray() {
 		extract(configDefaults());
-		$config = new Config("[]", $logger);
+		$config = new WebDeploy("[]", $logger);
 		$rule->set("repository", "a");
 		$hook->set("repository", "a");
 		$config->addRule($rule);
 		$config->matchHook($hook);
 		$this->assertContains(0, $config->matched);
 	}
-	function test_addRule_forUnmatchedConfigRules_excludedFromMatchedArray() {
+	function test_matchHook_forUnmatchedConfigRules_excludedFromMatchedArray() {
 		extract(configDefaults());
-		$config = new Config("[]", $logger);
+		$config = new WebDeploy("[]", $logger);
 		$rule->set("repository", "a");
 		$hook->set("repository", "b");
 		$config->addRule($rule);

@@ -5,7 +5,7 @@ include_once __dir__ . "/utils.php";
 
 
 function deploymentDefaults() {
-	$logger = new TestLogger("nul");
+	$logger = new Logger("nul");
 	$rule = new ConfigRule([
 		"repository"=>"https://test-repository",
 		"destination"=>"deploy-test",
