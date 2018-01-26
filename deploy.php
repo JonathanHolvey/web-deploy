@@ -176,16 +176,30 @@ class Deployment {
 		$this->deployMode = null;
 		$this->archive = null;
 		$this->errors = 0;
+		$this->result = null;
 	}
 
 	function deploy() {
-		if ($this->setup() === true) {
-			$allFiles = $this->getMode() == "replace";
-			$dryRun = $rule->get("mode") == "dry-run";
-			return $this->deployFiles($allFiles, $dryRun);
-		}
-		else
+		if ($this->setup() !== true)
 			return false;
+		$allFiles = $this->getMode() == "replace";
+		$dryRun = $this->rule->get("mode") == "dry-run";
+		if(!$this->deployFiles($allFiles, $dryRun)) {
+			$this->result = "failed";
+			return false;
+		}
+		elseif ($deploy->errors == 0) {
+			$this->result = "success";
+			$this->logger->message("Repository deployed successfully in mode "
+								   . $this->rule->get("mode"));
+			return true;
+		}
+		else {
+			$this->result = $deploy->errors . " error" . ($deploy->errors != 1 ? "s" : "");
+			$this->logger->message("Repository deployed in mode " . $this->rule->get("mode")
+								   . " with " . $this->result);
+			return false;
+		}
 	}
 
 	// Prepare to deploy
@@ -193,7 +207,7 @@ class Deployment {
 		$this->logger->setLogLevel($this->rule->get("log-level"));
 		$commitId = substr($this->hook->get("commit-id"), 0, 6);
 		$this->logger->message("Deploying $commitId (" . $this->hook->get("branch")
-							   . " from " . $this->hook->get("repository")
+							   . ") from " . $this->hook->get("repository")
 							   . "\nDestination: " . $this->rule->get("destination"));
 		// Create destination if it doesn't exist
 		if (!$this->is_dir($this->rule->get("destination"))) {
@@ -371,6 +385,7 @@ class WebDeploy {
 		$this->rules = [];
 		$this->valid = [];
 		$this->matched = [];
+		$this->results = [];
 		$this->parse($json);
 	}
 
@@ -381,23 +396,22 @@ class WebDeploy {
 	}
 
 	function deployAll() {
-		foreach ($this->matched as $index)
-			$this->deployRule($index);
+		$this->checkRules();
+		if (count($this->matched) > 0) {
+			foreach ($this->matched as $index)
+				$this->deployRule($index);
+			$this->logStatus();
+		}
 	}
 
 	function deployRule($index) {
 		if (!in_array($index, $this->matched))
-			return false;
+			return;
 		$rule = $this->rules[$index];
 		$deploy = new Deployment($rule, $this->hook, $this->logger);
 		$deploy->deploy();
-		if ($deploy->errors == 0)
-			$this->logger->success("Repository deployed successfully in mode " . $rule->get("mode"));
-		else
-			$this->logger->error("Repository deployed in mode " . $rule->get("mode")  . " with "
-					  . $deploy->errors . ($deploy->errors > 1 ? " errors" : " error"), 500);
-		$logger->setLogLevel();
-		return $deploy->errors === 0;
+		$this->results[$index] = $deploy->result;
+		$this->logger->setLogLevel();
 	}
 
 	function addRule($rule) {
@@ -425,11 +439,26 @@ class WebDeploy {
 			$this->logger->error("The webhook couldn't be matched against any deployment config", 401);
 			foreach ($this->rules as $index=>$rule) {
 				if (count($rule->filters) > 0)
-					$this->logger->message("Rule $index was filtered by options "
-										   . implode(", ", $rule->filters));
+					$this->logger->message("Rule $index was filtered by option"
+										   . (count($rule->filters) > 1 ? "s" : "")
+										   . "'" . implode("', '", $rule->filters) . "'");
 			}
 		}
 
+	}
+
+	function logStatus($success=true) {
+		$matched = count($this->matched);
+		$message = "Repository deployed using $matched matching config rule" . ($matched != 1 ? "s" : "") . ":";
+		foreach ($this->results as $index=>$result) {
+			$mode = $this->rules[$index]->get("mode");
+			$dest = $this->rules[$index]->get("destination");
+			$message .= "\n[$index] $mode, $result:  $dest";
+		}
+		if ($success === true)
+			$this->logger->success($message, false);
+		else
+			$this->logger->error($message, 500, false);
 	}
 }
 
@@ -479,14 +508,16 @@ class Logger {
 	}
 
 	// Set error code and message
-	function error($message, $code) {
-		$this->message("Error: " . $message);
+	function error($message, $code, $log=true) {
+		if ($log)
+			$this->message("Error: " . $message);
 		$this->setStatus($message, $code);
 	}
 
 	// Set success code and message
-	function success($message) {
-		$this->message($message);
+	function success($message, $log=true) {
+		if ($log)
+			$this->message($message);
 		$this->setStatus($message, 200);
 	}
 
