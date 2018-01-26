@@ -12,6 +12,7 @@ const VERSION_INFO = "GitHub Web Deploy v1.2.0-beta";
 const LOG_NONE = 0;
 const LOG_BASIC = 1;
 const LOG_VERBOSE = 2;
+const LOG_DEBUG = 3;
 
 
 // Base class to hold all webhook properties
@@ -254,11 +255,15 @@ class Deployment {
 		// Populate arrays $modified and $removed with lists files
 		extract($this->hook->collectChanges());
 		// Download and extract repository
+		$this->logger->message("Fetching repository archive from " . $this->hook->get("archive"), LOG_DEBUG);
 		$archive = $this->getArchive($this->hook->get("archive"));
 		if ($archive === false) {
-			$this->logger->error("The zip archive could not be opened", 400);
+			$this->logger->message("The zip archive could not be opened");
 			return false;
 		}
+		$this->logger->message("Modified files: " . implode(", ", $modified), LOG_DEBUG);
+		$this->logger->message("Removed files: " . implode(", ", $removed), LOG_DEBUG);
+		$this->logger->message("Repository files: " . implode(", ", $archive->listFiles()), LOG_DEBUG);
 		// Extract modified files
 		foreach ($archive->listFiles() as $index=>$filename) {
 			if ($this->isIgnored($filename)) {
@@ -295,13 +300,12 @@ class Deployment {
 	// Download and open repository from zip file
 	function getArchive($url) {
 		$filename = basename($url);
-		if (file_put_contents($filename, fopen($url, "r")) !== false) {
-			$zip = new GitArchive;
-			if ($zip->open($filename) === true) {
-				unlink($filename);
-				return $zip;
-			}
-			unlink($filename);
+		$size = file_put_contents($filename, fopen($url, "r"));
+		if ($size === 0 || $size === false)
+			return false;
+		$zip = new GitArchive;
+		if ($zip->open($filename) === true) {
+			return $zip;
 		}
 		return false;
 	}
@@ -489,7 +493,8 @@ class Logger {
 		if (!is_int($level)) {
 			$levels = ["none" => LOG_NONE,
 					   "basic" => LOG_BASIC,
-					   "verbose" => LOG_VERBOSE];
+					   "verbose" => LOG_VERBOSE,
+					   "debug" => LOG_DEBUG];
 			if (in_array($level, $levels))
 				$level = $levels[$level];
 			else
