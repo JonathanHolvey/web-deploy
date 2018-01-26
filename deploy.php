@@ -512,10 +512,10 @@ if (__FILE__ == get_included_files()[0]) {
 		if ($_SERVER["HTTP_X_GITHUB_EVENT"] == "ping")
 			$logger->success("Ping received");
 		elseif (file_exists("config.json")) {
-			$payload = json_decode($_POST["payload"], true);
-			$configs =  json_decode(file_get_contents("config.json"), true);
-			$deployment = new WebDeploy($payload, $configs, $logger);
-			$deployment->deploy();
+			$hook = new GitHubWebhook(json_decode($_POST["payload"], true));
+			$config = new WebDeploy(file_get_contents("config.json"), $logger);
+			$config->matchHook($hook);
+			$config->deployAll();
 		}
 		else
 			$logger->error("Config file not found", 500);
