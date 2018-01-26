@@ -625,6 +625,26 @@ class Config {
 		}
 	}
 
+	function deployAll() {
+		foreach ($this->matched as $index)
+			$this->deployRule($index);
+	}
+
+	function deployRule($index) {
+		if (!in_array($index, $this->matched))
+			return false;
+		$rule = $this->rules[$index];
+		$deploy = new Deployment($rule, $this->hook, $this->logger);
+		$deploy->deploy();
+		if ($deploy->errors == 0)
+			$this->logger->success("Repository deployed successfully in mode " . $rule->get("mode"));
+		else
+			$this->logger->error("Repository deployed in mode " . $rule->get("mode")  . " with "
+					  . $deploy->errors . ($deploy->errors > 1 ? " errors" : " error"), 500);
+		$logger->setLogLevel();
+		return $deploy->errors === 0;
+	}
+
 	function addRule($rule) {
 		$index = count($this->rules);
 		$this->rules[$index] = $rule;
@@ -681,7 +701,7 @@ class Logger {
 	}
 
 	// Set logger instance log level
-	function setLogLevel($level) {
+	function setLogLevel($level=LOG_BASIC) {
 		if (!is_int($level)) {
 			$levels = ["none" => LOG_NONE,
 					   "basic" => LOG_BASIC,
