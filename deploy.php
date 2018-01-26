@@ -566,8 +566,16 @@ class Deployment {
 
 	// Check to see if a file should be ignored
 	function isIgnored($filename) {
+		// Match by glob pattern
 		foreach ($this->rule->get("ignore") as $pattern) {
 			if (fnmatch($pattern, $filename))
+				return true;
+		}
+		// Match by path fragments
+		$fragments = explode("/", $filename);
+		foreach ($fragments as $index=>$fragment) {
+			$path = implode("/", array_slice($fragments, 0, $index + 1));
+			if (in_array($path, $this->rule->get("ignore")))
 				return true;
 		}
 		return false;

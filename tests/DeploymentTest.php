@@ -312,4 +312,62 @@ final class DeploymentTest extends TestCase {
 			);
 		$deploy->deployFiles(true);
 	}
+	function test_isIgnored_forIgnoredPatternMatchesFileInDestinationRoot_returnsTrue() {
+		extract(deploymentDefaults());
+		$rule->set("ignore", ["a"]);
+		$deploy = new Deployment($rule, $hook, $logger);
+		$this->assertTrue($deploy->isIgnored("a"));
+	}
+	function test_isIgnored_forIgnoredPatternDoesNotMatchFileInDestinationRoot_returnsFalse() {
+		extract(deploymentDefaults());
+		$rule->set("ignore", ["a"]);
+		$deploy = new Deployment($rule, $hook, $logger);
+		$this->assertFalse($deploy->isIgnored("b"));
+	}
+	function test_isIgnored_forIgnoredPatternMatchesDirectoryInDestinationRoot_returnsTrue() {
+		extract(deploymentDefaults());
+		$rule->set("ignore", ["a"]);
+		$deploy = new Deployment($rule, $hook, $logger);
+		$this->assertTrue($deploy->isIgnored("a/b"));
+	}
+	function test_isIgnored_forIgnoredPatternDoesNotMatchDirectoryInDestinationRoot_returnsFalse() {
+		extract(deploymentDefaults());
+		$rule->set("ignore", ["a"]);
+		$deploy = new Deployment($rule, $hook, $logger);
+		$this->assertFalse($deploy->isIgnored("b/b"));
+	}
+	function test_isIgnored_forIgnoredPatternMatchesFileInSubdirectory_returnsTrue() {
+		extract(deploymentDefaults());
+		$rule->set("ignore", ["a/b"]);
+		$deploy = new Deployment($rule, $hook, $logger);
+		$this->assertTrue($deploy->isIgnored("a/b"));
+	}
+	function test_isIgnored_forIgnoredPatternDoesNotMatchFileInSubdirectory_returnsFalse() {
+		extract(deploymentDefaults());
+		$rule->set("ignore", ["a/b"]);
+		$deploy = new Deployment($rule, $hook, $logger);
+		$this->assertFalse($deploy->isIgnored("b/b"));
+	}
+	function test_isIgnored_forIgnoredPatternDoesNotMatchSubdirectory_returnsFalse() {
+		extract(deploymentDefaults());
+		$rule->set("ignore", ["a/b"]);
+		$deploy = new Deployment($rule, $hook, $logger);
+		$this->assertFalse($deploy->isIgnored("b/b/c"));
+	}
+	function test_isIgnored_forIgnoredPatternMatchesWildcards_returnsTrue() {
+		extract(deploymentDefaults());
+		$rule->set("ignore", ["a*", "b/*"]);
+		$deploy = new Deployment($rule, $hook, $logger);
+		$this->assertTrue($deploy->isIgnored("ab"));		
+		$this->assertTrue($deploy->isIgnored("a/b"));		
+		$this->assertTrue($deploy->isIgnored("b/b"));		
+		$this->assertTrue($deploy->isIgnored("b/b/c"));		
+	}
+	function test_isIgnored_forIgnoredPatternDoesNotMatchWildcards_returnsFalse() {
+		extract(deploymentDefaults());
+		$rule->set("ignore", ["a*", "b/*"]);
+		$deploy = new Deployment($rule, $hook, $logger);
+		$this->assertFalse($deploy->isIgnored("bb"));		
+		$this->assertFalse($deploy->isIgnored("c"));		
+	}
 }
