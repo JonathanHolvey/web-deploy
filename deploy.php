@@ -185,7 +185,7 @@ class Deployment {
 		$allFiles = $this->getMode() == "replace";
 		$dryRun = $this->rule->get("mode") == "dry-run";
 		if(!$this->deployFiles($allFiles, $dryRun)) {
-			$this->result = "failed";
+			$this->result = "failure";
 			return false;
 		}
 		elseif ($deploy->errors == 0) {
@@ -458,7 +458,7 @@ class WebDeploy {
 		foreach ($this->results as $index=>$result) {
 			$mode = $this->rules[$index]->get("mode");
 			$dest = $this->rules[$index]->get("destination");
-			$message .= "\n[$index] $mode, $result:  $dest";
+			$message .= "\nRule $index: $result (mode $mode) > $dest";
 		}
 		if ($success === true)
 			$this->logger->setStatus($message);
