@@ -175,7 +175,6 @@ class Deployment {
 		$this->hook = $hook;
 		$this->logger = $logger;
 		$this->deployMode = null;
-		$this->archive = null;
 		$this->errors = 0;
 		$this->result = null;
 	}
@@ -294,6 +293,8 @@ class Deployment {
 					$this->cleanDirs(dirname($filename));
 			}
 		}
+		// Remove repository archive
+		$archive->cleanup();
 		return true;
 	}
 
@@ -476,6 +477,13 @@ class GitArchive extends ZipArchive {
 				$files[$i] = str_replace($root, "", $this->getNameIndex($i));
 		}
 		return $files;
+	}
+
+	// Close and remove zip file
+	function cleanup() {
+		$file = $this->filename;
+		$this->close();
+		unlink($file);
 	}
 }
 
