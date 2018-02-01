@@ -257,7 +257,7 @@ class Deployment {
 		$this->logger->message("Fetching repository archive from " . $this->hook->get("archive"), LOG_DEBUG);
 		$archive = $this->getArchive($this->hook->get("archive"));
 		if ($archive === false) {
-			$this->logger->message("The zip archive could not be opened");
+			$this->logger->error("The zip archive could not be opened", 500);
 			return false;
 		}
 		$this->logger->message("Modified files: " . implode(", ", $modified), LOG_DEBUG);
@@ -454,16 +454,16 @@ class WebDeploy {
 
 	function logStatus($success=true) {
 		$matched = count($this->matched);
-		$message = "Repository deployed using $matched matching config rule" . ($matched != 1 ? "s" : "") . ":";
+		$message = "Repository matched with $matched config rule" . ($matched != 1 ? "s" : "") . ":";
 		foreach ($this->results as $index=>$result) {
 			$mode = $this->rules[$index]->get("mode");
 			$dest = $this->rules[$index]->get("destination");
 			$message .= "\n[$index] $mode, $result:  $dest";
 		}
 		if ($success === true)
-			$this->logger->success($message, false);
+			$this->logger->setStatus($message);
 		else
-			$this->logger->error($message, 500, false);
+			$this->logger->setStatus($message, 500);
 	}
 }
 
@@ -521,21 +521,13 @@ class Logger {
 	}
 
 	// Set error code and message
-	function error($message, $code, $log=true) {
-		if ($log)
-			$this->message("Error: " . $message);
+	function error($message, $code) {
+		$this->message("Error: " . $message);
 		$this->setStatus($message, $code);
 	}
 
-	// Set success code and message
-	function success($message, $log=true) {
-		if ($log)
-			$this->message($message);
-		$this->setStatus($message, 200);
-	}
-
 	// Store status code and message, to be output in HTML
-	function setStatus($message, $code) {
+	function setStatus($message, $code=200) {
 		if ($code > $this->statusCode)
 			$this->statusCode = $code;
 		$this->statusMessage .= "\n" . $message;
