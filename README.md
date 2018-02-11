@@ -32,7 +32,7 @@ Multiple repositories or branches can be configured to be deployed to different 
 
 ## Config options
 
-The configuration file `config.json` can contain multiple configs, each defined as a JSON object, and surrounded by curly braces. Web Deploy will pick the first matching config, based on the values of the `repository`, `branches`, `events`, and `pre-releases` options. This allows complex configurations where branches can be deployed to different destinations, or ignored completely.
+The configuration file `config.json` can contain multiple config rules, each defined as a JSON object, and surrounded by curly braces. Web Deploy will pick the first matching config rule, based on the values of the `repository`, `branches`, `events`, and `pre-releases` options. This allows complex configurations where branches can be deployed to different destinations, or ignored completely.
 
 **repository** (required): The URL of the GitHub repository to be deployed. This will be matched against the webhook payload.
 
