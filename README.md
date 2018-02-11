@@ -85,6 +85,14 @@ The configuration file `config.json` can contain multiple configs, each defined 
 ]
 ```
 
+## Unit testing
+
+Testing is provided by the [PHPUnit](https://phpunit.de) framework. To run the tests, install PHPUnit in the project directory (or a location accessible from `PATH`), then issue the following command:
+
+```
+php PHPUnit ./tests
+```
+
 ## Credits
 
 This script was inspired by *Easy Git Code Deploy*, which is available from [codecanyon.net](https://codecanyon.net/item/easy-git-code-deploy/8586366).
