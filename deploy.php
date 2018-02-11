@@ -15,6 +15,92 @@ const LOG_VERBOSE = 2;
 const LOG_DEBUG = 3;
 
 
+// Class to hold and manage entire deployment config
+class WebDeploy {
+	function __construct($json, $logger) {
+		$this->hook = null;
+		$this->logger = $logger;
+		$this->rules = [];
+		$this->valid = [];
+		$this->matched = [];
+		$this->results = [];
+		$this->parse($json);
+	}
+
+	function parse($json) {
+		foreach (json_decode($json, true) as $index=>$data) {
+			$this->addRule(new ConfigRule($data));
+		}
+	}
+
+	function deployAll() {
+		$this->checkRules();
+		if (count($this->matched) > 0) {
+			foreach ($this->matched as $index)
+				$this->deployRule($index);
+			$this->logStatus();
+		}
+	}
+
+	function deployRule($index) {
+		if (!in_array($index, $this->matched))
+			return;
+		$rule = $this->rules[$index];
+		$deploy = new Deployment($rule, $this->hook, $this->logger);
+		$deploy->deploy();
+		$this->results[$index] = $deploy->result;
+		$this->logger->setLogLevel();
+	}
+
+	function addRule($rule) {
+		$index = count($this->rules);
+		$this->rules[$index] = $rule;
+		if ($rule->validate() === true)
+			$this->valid[] = $index;
+	}
+
+	function matchHook($hook) {
+		$this->hook = $hook;
+		$this->matched = [];
+		foreach ($this->valid as $index) {
+			$rule = $this->rules[$index];
+			if ($rule->compareTo($this->hook) === true)
+				$this->matched[] = $index;
+		}
+	}
+
+	// Log messages if issues were found in config rules
+	function checkRules() {
+		if (count($this->valid) === 0)
+			$this->logger->error("No valid rules were found in the deployment config", 500);
+		elseif (count($this->matched) === 0) {
+			$this->logger->error("The webhook couldn't be matched against any deployment config", 401);
+			foreach ($this->rules as $index=>$rule) {
+				if (count($rule->filters) > 0)
+					$this->logger->message("Rule $index was filtered by option"
+										   . (count($rule->filters) > 1 ? "s" : "")
+										   . "'" . implode("', '", $rule->filters) . "'");
+			}
+		}
+
+	}
+
+	function logStatus($success=true) {
+		$matched = count($this->matched);
+		$message = "Repository matched with $matched config rule" . ($matched != 1 ? "s" : "") . ":";
+		foreach ($this->results as $index=>$result) {
+			$mode = $this->rules[$index]->get("mode");
+			$dest = $this->rules[$index]->get("destination");
+			$message .= "\nRule $index: $result (mode $mode) > $dest";
+		}
+		if ($success === true)
+			$this->logger->setStatus($message);
+		else
+			$this->logger->setStatus($message, 500);
+	}
+}
+
+
 // Base class to hold all webhook properties
 abstract class Webhook {
 	function __construct($data) {
@@ -169,6 +255,7 @@ class ConfigRule {
 }
 
 
+// Class to perform all file changes
 class Deployment {
 	function __construct($rule, $hook, $logger) {
 		$this->rule = $rule;
@@ -378,92 +465,6 @@ class Deployment {
 	}
 	function file_exists(...$args) {
 		return file_exists(...$args);
-	}
-}
-
-
-// Class to hold and manage entire deployment config
-class WebDeploy {
-	function __construct($json, $logger) {
-		$this->hook = null;
-		$this->logger = $logger;
-		$this->rules = [];
-		$this->valid = [];
-		$this->matched = [];
-		$this->results = [];
-		$this->parse($json);
-	}
-
-	function parse($json) {
-		foreach (json_decode($json, true) as $index=>$data) {
-			$this->addRule(new ConfigRule($data));
-		}
-	}
-
-	function deployAll() {
-		$this->checkRules();
-		if (count($this->matched) > 0) {
-			foreach ($this->matched as $index)
-				$this->deployRule($index);
-			$this->logStatus();
-		}
-	}
-
-	function deployRule($index) {
-		if (!in_array($index, $this->matched))
-			return;
-		$rule = $this->rules[$index];
-		$deploy = new Deployment($rule, $this->hook, $this->logger);
-		$deploy->deploy();
-		$this->results[$index] = $deploy->result;
-		$this->logger->setLogLevel();
-	}
-
-	function addRule($rule) {
-		$index = count($this->rules);
-		$this->rules[$index] = $rule;
-		if ($rule->validate() === true)
-			$this->valid[] = $index;
-	}
-
-	function matchHook($hook) {
-		$this->hook = $hook;
-		$this->matched = [];
-		foreach ($this->valid as $index) {
-			$rule = $this->rules[$index];
-			if ($rule->compareTo($this->hook) === true)
-				$this->matched[] = $index;
-		}
-	}
-
-	// Log messages if issues were found in config rules
-	function checkRules() {
-		if (count($this->valid) === 0)
-			$this->logger->error("No valid rules were found in the deployment config", 500);
-		elseif (count($this->matched) === 0) {
-			$this->logger->error("The webhook couldn't be matched against any deployment config", 401);
-			foreach ($this->rules as $index=>$rule) {
-				if (count($rule->filters) > 0)
-					$this->logger->message("Rule $index was filtered by option"
-										   . (count($rule->filters) > 1 ? "s" : "")
-										   . "'" . implode("', '", $rule->filters) . "'");
-			}
-		}
-
-	}
-
-	function logStatus($success=true) {
-		$matched = count($this->matched);
-		$message = "Repository matched with $matched config rule" . ($matched != 1 ? "s" : "") . ":";
-		foreach ($this->results as $index=>$result) {
-			$mode = $this->rules[$index]->get("mode");
-			$dest = $this->rules[$index]->get("destination");
-			$message .= "\nRule $index: $result (mode $mode) > $dest";
-		}
-		if ($success === true)
-			$this->logger->setStatus($message);
-		else
-			$this->logger->setStatus($message, 500);
 	}
 }
 
