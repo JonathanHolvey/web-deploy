@@ -21,12 +21,12 @@ Multiple repositories or branches can be configured to be deployed to different 
 [
     {
         "repository": "https://github.com/username/deployment-test",
-        "destinations": ["/var/www/html"],
+        "destination": "/var/www/html",
         "mode": "update"
     }
 ]
 ```
-3. Set the mandatory options `repository`, `destinations` and `mode` in the config file (see below for details).
+3. Set the mandatory options `repository`, `destination` and `mode` in the config file (see below for details).
 4. Add a webhook in your GitHub repository settings, pointing the payload URL at the deployment script.
 5. Push to your GitHub repository to deploy. 
 
@@ -36,7 +36,7 @@ The configuration file `config.json` can contain multiple configs, each defined 
 
 **repository** (required): The URL of the GitHub repository to be deployed. This will be matched against the webhook payload.
 
-**destinations** (required): An array of one or more absolute paths on the webserver to which the repository should be deployed.
+**destination** (required): The absolute path on the webserver to which the repository should be deployed.
 
 **mode** (required): The mode the deployment should be performed in. Valid options are:  
         `update`: Only the file changes specified in the payload are deployed. Overridden by `git push --force`.  
@@ -50,7 +50,7 @@ The configuration file `config.json` can contain multiple configs, each defined 
 
 **pre-releases**: A boolean value to enable the deployment of pre-releases with the `release` event. Defaults to `false`.
 
-**ignore**: An array of file names that should not be extracted from the repository, similar to .gitignore rules.
+**ignore**: An array of file names that should not be created (or modified if they exist) during deployment.
 
 **log-level**: The amount of information that should be written to the log file `deploy.log`. Valid options are:  
         `none`: Logging is disabled  
@@ -63,23 +63,20 @@ The configuration file `config.json` can contain multiple configs, each defined 
 [
     {
         "repository": "https://github.com/username/deployment-test",
-        "destinations": [
-            "/var/www/html",
-            "/var/www/html/example.com/lib"
-        ],
+        "destination": "/var/www/html",
         "mode": "update",
         "events": ["release"],
         "pre-releases": true
     },
     {
         "repository": "https://github.com/username/deployment-test",
-        "destinations": ["/var/www/html/staging"],
+        "destination": "/var/www/html/staging",
         "mode": "replace",
         "branches": ["develop", "release-"]
     },
     {
         "repository": "https://github.com/username/magic-deploy",
-        "destinations": ["/var/www/html/magic.example.com"],
+        "destination": "/var/www/html/magic.example.com",
         "mode": "deploy",
         "branches": ["master"],
         "ignore": [".gitignore", "user-content", "readme.md"],
@@ -87,7 +84,6 @@ The configuration file `config.json` can contain multiple configs, each defined 
     }
 ]
 ```
-
 
 ## Credits
 
