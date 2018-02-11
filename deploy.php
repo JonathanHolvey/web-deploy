@@ -4,10 +4,10 @@
  * https://github.com/JonathanHolvey/web-deploy
  * @author Jonathan Holvey
  * @license GPLv3
- * @version 1.2.0-beta
+ * @version 2.0.0-beta.1
  */
 
-const VERSION_INFO = "GitHub Web Deploy v1.2.0-beta";
+const VERSION_INFO = "GitHub Web Deploy v2.0.0-beta.1";
 
 const LOG_NONE = 0;
 const LOG_BASIC = 1;
