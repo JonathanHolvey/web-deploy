@@ -389,13 +389,15 @@ class Deployment {
 	function getArchive($url) {
 		$filename = basename($url);
 		$size = file_put_contents($filename, fopen($url, "r"));
-		if ($size === 0 || $size === false)
-			return false;
-		$zip = new GitArchive;
-		if ($zip->open($filename) === true) {
-			return $zip;
+		if ($size > 0 && $size !== false) {
+			$zip = new GitArchive;
+			if ($zip->open($filename) === true)
+				return $zip;
 		}
-		return false;
+		else {
+			unlink($filename);
+			return false;
+		}
 	}
 
 	// Create file from data string
