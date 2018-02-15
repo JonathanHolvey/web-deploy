@@ -93,6 +93,10 @@ Testing is provided by the [PHPUnit](https://phpunit.de) framework. To run the t
 php PHPUnit ./tests
 ```
 
+## License
+
+This software is distributed under the GNU General Public License v3. Copyright 2017-2018 Jonathan Holvey.
+
 ## Credits
 
 This project was inspired by *Easy Git Code Deploy*, which is available from [codecanyon.net](https://codecanyon.net/item/easy-git-code-deploy/8586366).
