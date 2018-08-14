@@ -275,14 +275,14 @@ class Deployment {
 			$this->result = "failure";
 			return false;
 		}
-		elseif ($deploy->errors == 0) {
+		elseif ($this->errors === 0) {
 			$this->result = "success";
 			$this->logger->message("Repository deployed successfully in mode "
 								   . $this->rule->get("mode"));
 			return true;
 		}
 		else {
-			$this->result = $deploy->errors . " error" . ($deploy->errors != 1 ? "s" : "");
+			$this->result = $this->errors . " error" . ($this->errors != 1 ? "s" : "");
 			$this->logger->message("Repository deployed in mode " . $this->rule->get("mode")
 								   . " with " . $this->result);
 			return false;
