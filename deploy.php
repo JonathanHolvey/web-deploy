@@ -423,7 +423,7 @@ class Deployment {
 
 	// Remove empty directories
 	function cleanDirs($path) {
-		while ($path !== $this->rule->get("destination") and countFiles($path) === 0) {
+		while ($path !== $this->rule->get("destination") and $this->countFiles($path) === 0) {
 			rmdir($path);
 			$path = dirname($path);
 		}
