@@ -403,9 +403,9 @@ class Deployment {
 	// Create file from data string
 	function writeFile($path, $data) {
 		$path = $this->rule->get("destination") . "/" . $path;
-		if (!is_dir(dirname($path)))
-			mkdir(dirname($path), 0755, true);
-		if (file_put_contents($path, $data) !== false)
+		if (!$this->is_dir(dirname($path)))
+			$this->mkdir(dirname($path), 0755, true);
+		if ($this->file_put_contents($path, $data) !== false)
 			return true;
 		return false;
 	}
@@ -413,8 +413,8 @@ class Deployment {
 	// Remove file
 	function removeFile($path) {
 		$path = $this->rule->get("destination") . "/" . $path;
-		if (is_file($path)) {
-			if (unlink($path))
+		if ($this->is_file($path)) {
+			if ($this->unlink($path))
 				return true;
 			return false;
 		}
@@ -464,11 +464,20 @@ class Deployment {
 	function is_dir(...$args) {
 		return is_dir(...$args);
 	}
+	function is_file(...$args) {
+		return is_file(...$args);
+	}
 	function is_writable(...$args) {
 		return is_dir(...$args);
 	}
 	function file_exists(...$args) {
 		return file_exists(...$args);
+	}
+	function file_put_contents(...$args) {
+		return file_put_contents(...$args);
+	}
+	function unlink(...$args) {
+		return unlink(...$args);
 	}
 }
 
