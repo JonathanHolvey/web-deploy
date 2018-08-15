@@ -402,6 +402,7 @@ class Deployment {
 
 	// Create file from data string
 	function writeFile($path, $data) {
+		$path = $this->rule->get("destination") . "/" . $path;
 		if (!is_dir(dirname($path)))
 			mkdir(dirname($path), 0755, true);
 		if (file_put_contents($path, $data) !== false)
@@ -411,6 +412,7 @@ class Deployment {
 
 	// Remove file
 	function removeFile($path) {
+		$path = $this->rule->get("destination") . "/" . $path;
 		if (is_file($path)) {
 			if (unlink($path))
 				return true;
