@@ -312,6 +312,42 @@ final class DeploymentTest extends TestCase {
 			);
 		$deploy->deployFiles(true);
 	}
+	function test_writeFile_forModifiedFiles_deploysToFullDestinationPath() {
+		extract(deploymentDefaults());
+		$hook->set("commits", [["added"=>[], "modified"=>["a", "b"], "removed"=>[]]]);
+		$zip = $this->getMockBuilder("GitArchive")
+			->setMethods(["listFiles", "getFromIndex", "cleanup"])->getMock();
+		$zip->method("listFiles")->willReturn(["a", "b"]);
+		$deploy = $this->getMockBuilder("Deployment")
+			->setConstructorArgs([$rule, $hook, $logger])
+			->setMethods(["file_put_contents", "getArchive"])->getMock();
+		$deploy->method("getArchive")->willReturn($zip);
+		$deploy->expects($this->exactly(2))->method("file_put_contents")
+			->withConsecutive(
+				[$this->equalTo("deploy-test/a")],
+				[$this->equalTo("deploy-test/b")]
+			);
+		$deploy->deployFiles();
+	}
+	function test_removeFile_forModifiedFiles_deploysToFullDestinationPath() {
+		extract(deploymentDefaults());
+		$hook->set("commits", [["added"=>[], "modified"=>[], "removed"=>["a", "b"]]]);
+		$zip = $this->getMockBuilder("GitArchive")
+			->setMethods(["listFiles", "getFromIndex", "cleanup"])->getMock();
+		$zip->method("listFiles")->willReturn([]);
+		$deploy = $this->getMockBuilder("Deployment")
+			->setConstructorArgs([$rule, $hook, $logger])
+			->setMethods(["file_exists", "is_file", "unlink", "getArchive"])->getMock();
+		$deploy->method("getArchive")->willReturn($zip);
+		$deploy->method("file_exists")->willReturn(true);
+		$deploy->method("is_file")->willReturn(true);
+		$deploy->expects($this->exactly(2))->method("unlink")
+			->withConsecutive(
+				[$this->equalTo("deploy-test/a")],
+				[$this->equalTo("deploy-test/b")]
+			);
+		$deploy->deployFiles();
+	}
 	function test_isIgnored_forIgnoredPatternMatchesFileInDestinationRoot_returnsTrue() {
 		extract(deploymentDefaults());
 		$rule->set("ignore", ["a"]);

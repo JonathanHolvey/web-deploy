@@ -4,10 +4,10 @@
  * https://github.com/JonathanHolvey/web-deploy
  * @author Jonathan Holvey
  * @license GPLv3
- * @version 2.0.0-beta.1
+ * @version 2.0.0-beta.2
  */
 
-const VERSION_INFO = "GitHub Web Deploy v2.0.0-beta.1";
+const VERSION_INFO = "GitHub Web Deploy v2.0.0-beta.2";
 
 const LOG_NONE = 0;
 const LOG_BASIC = 1;
@@ -275,14 +275,14 @@ class Deployment {
 			$this->result = "failure";
 			return false;
 		}
-		elseif ($deploy->errors == 0) {
+		elseif ($this->errors === 0) {
 			$this->result = "success";
 			$this->logger->message("Repository deployed successfully in mode "
 								   . $this->rule->get("mode"));
 			return true;
 		}
 		else {
-			$this->result = $deploy->errors . " error" . ($deploy->errors != 1 ? "s" : "");
+			$this->result = $this->errors . " error" . ($this->errors != 1 ? "s" : "");
 			$this->logger->message("Repository deployed in mode " . $this->rule->get("mode")
 								   . " with " . $this->result);
 			return false;
@@ -402,17 +402,19 @@ class Deployment {
 
 	// Create file from data string
 	function writeFile($path, $data) {
-		if (!is_dir(dirname($path)))
-			mkdir(dirname($path), 0755, true);
-		if (file_put_contents($path, $data) !== false)
+		$path = $this->rule->get("destination") . "/" . $path;
+		if (!$this->is_dir(dirname($path)))
+			$this->mkdir(dirname($path), 0755, true);
+		if ($this->file_put_contents($path, $data) !== false)
 			return true;
 		return false;
 	}
 
 	// Remove file
 	function removeFile($path) {
-		if (is_file($path)) {
-			if (unlink($path))
+		$path = $this->rule->get("destination") . "/" . $path;
+		if ($this->is_file($path)) {
+			if ($this->unlink($path))
 				return true;
 			return false;
 		}
@@ -421,7 +423,7 @@ class Deployment {
 
 	// Remove empty directories
 	function cleanDirs($path) {
-		while ($path !== $this->rule->get("destination") and countFiles($path) === 0) {
+		while ($path !== $this->rule->get("destination") and $this->countFiles($path) === 0) {
 			rmdir($path);
 			$path = dirname($path);
 		}
@@ -462,11 +464,20 @@ class Deployment {
 	function is_dir(...$args) {
 		return is_dir(...$args);
 	}
+	function is_file(...$args) {
+		return is_file(...$args);
+	}
 	function is_writable(...$args) {
 		return is_dir(...$args);
 	}
 	function file_exists(...$args) {
 		return file_exists(...$args);
+	}
+	function file_put_contents(...$args) {
+		return file_put_contents(...$args);
+	}
+	function unlink(...$args) {
+		return unlink(...$args);
 	}
 }
 

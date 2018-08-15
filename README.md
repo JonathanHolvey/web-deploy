@@ -90,8 +90,12 @@ The configuration file `config.json` can contain multiple config rules, each def
 Testing is provided by the [PHPUnit](https://phpunit.de) framework. To run the tests, install PHPUnit in the project directory (or a location accessible from `PATH`), then issue the following command:
 
 ```
-php PHPUnit ./tests
+phpunit ./tests
 ```
+
+## License
+
+This software is distributed under the GNU General Public License v3. Copyright 2017-2018 Jonathan Holvey.
 
 ## Credits
 
